@@ -1,0 +1,144 @@
+--Hotel Chains
+INSERT INTO HotelChain(ChainID, ChainName, ChainAddress, NumHotels, ChainContactEmail, ChainContactPhone)
+VALUES
+(1, 'Chain A', '1 Apple Road', 20, 'chainA@gmail.com', 543-543-5433),
+(2, 'Chain B', 2 Banana Road', 15, 'chainB@gmail.com', '342-432-1424'),
+(3, 'Chain C', 3 Cat Road', 15, 'chainC@gmail.com', '125-543-5432'),
+(4, 'Chain D', 4 Dog Drive', 15, 'chainD@gmail.com', '543-875-5343'),
+(5, 'Chain E', 5 Elevator Path', 15, 'chainE@gmail.com', '456-765-3342'),
+
+--Hotels
+INSERT INTO Hotel (HotelID, ChainID, StarRating, NumRooms, HotelAddress, HotelContactEmail, HotelContactPhone)
+VALUES
+-- Chain A
+(11, 1, 5, 100, '1 Ape Avenue', 'hotelA1@gmail.com', '123-321-4322'),
+(12, 1, 5, 100, '2 Ape Avenue', 'hotelA2@gmail.com', '123-321-4322'),
+(13, 1, 5, 100, '3 Ape Avenue', 'hotelA3@gmail.com', '123-321-4322'),
+(14, 1, 4, 100, '4 Ape Avenue', 'hotelA4@gmail.com', '123-321-4322'),
+(15, 1, 4, 100, '5 Ape Avenue', 'hotelA5@gmail.com', '123-321-4322'),
+(16, 1, 3, 100, '6 Ape Avenue', 'hotelA6@gmail.com', '123-321-4322'),
+(17, 1, 3, 100, '7 Ape Avenue', 'hotelA7@gmail.com', '123-321-4322'),
+(18, 1, 2, 100, '8 Ape Avenue', 'hotelA8@gmail.com', '123-321-4322'),
+
+-- Chain B
+(21, 2, 4, 110, '1 Birch Avenue', 'hotelB1@gmail.com', '123-321-4322'),
+(22, 2, 2, 110, '2 Birch Avenue', 'hotelB2@gmail.com', '342-321-5434'),
+(23, 2, 5, 110, '3 Birch Avenue', 'hotelB3@gmail.com', '311-321-5776'),
+(24, 2, 5, 110, '4 Birch Avenue', 'hotelB4@gmail.com', '654-321-9754'),
+(25, 2, 5, 110, '5 Birch Avenue', 'hotelB5@gmail.com', '543-321-2500'),
+(26, 2, 2, 110, '6 Birch Avenue', 'hotelB6@gmail.com', '234-321-5434'),
+(27, 2, 3, 110, '7 Birch Avenue', 'hotelB7@gmail.com', '234-321-4377'),
+(28, 2, 1, 110, '8 Birch Avenue', 'hotelB8@gmail.com', '468-321-4533'),
+
+-- Chain C
+(31, 3, 5, 90, '1 Cedar Lane', 'hotelC1@gmail.com', '333-111-2222'),
+(32, 3, 5, 90, '2 Cedar Lane', 'hotelC2@gmail.com', '333-111-2222'),
+(33, 3, 4, 90, '3 Cedar Lane', 'hotelC3@gmail.com', '333-111-2222'),
+(34, 3, 4, 90, '4 Cedar Lane', 'hotelC4@gmail.com', '333-111-2222'),
+(35, 3, 3, 90, '5 Cedar Lane', 'hotelC5@gmail.com', '333-111-2222'),
+(36, 3, 3, 90, '6 Cedar Lane', 'hotelC6@gmail.com', '333-111-2222'),
+(37, 3, 2, 90, '7 Cedar Lane', 'hotelC7@gmail.com', '333-111-2222'),
+(38, 3, 5, 90, '8 Cedar Lane', 'hotelC8@gmail.com', '333-111-2222'),
+
+-- Chain D
+(41, 4, 3, 80, '1 Delta Drive', 'hotelD1@gmail.com', '444-111-3333'),
+(42, 4, 3, 80, '2 Delta Drive', 'hotelD2@gmail.com', '444-111-3333'),
+(43, 4, 4, 80, '3 Delta Drive', 'hotelD3@gmail.com', '444-111-3333'),
+(44, 4, 4, 80, '4 Delta Drive', 'hotelD4@gmail.com', '444-111-3333'),
+(45, 4, 5, 80, '5 Delta Drive', 'hotelD5@gmail.com', '444-111-3333'),
+(46, 4, 5, 80, '6 Delta Drive', 'hotelD6@gmail.com', '444-111-3333'),
+(47, 4, 2, 80, '7 Delta Drive', 'hotelD7@gmail.com', '444-111-3333'),
+(48, 4, 2, 80, '8 Delta Drive', 'hotelD8@gmail.com', '444-111-3333'),
+
+-- Chain E
+(51, 5, 5, 120, '1 Echo Path', 'hotelE1@gmail.com', '555-222-4444'),
+(52, 5, 5, 120, '2 Echo Path', 'hotelE2@gmail.com', '555-222-4444'),
+(53, 5, 4, 120, '3 Echo Path', 'hotelE3@gmail.com', '555-222-4444'),
+(54, 5, 4, 120, '4 Echo Path', 'hotelE4@gmail.com', '555-222-4444'),
+(55, 5, 3, 120, '5 Echo Path', 'hotelE5@gmail.com', '555-222-4444'),
+(56, 5, 3, 120, '6 Echo Path', 'hotelE6@gmail.com', '555-222-4444'),
+(57, 5, 5, 120, '7 Echo Path', 'hotelE7@gmail.com', '555-222-4444'),
+(58, 5, 5, 120, '8 Echo Path', 'hotelE8@gmail.com', '555-222-4444');
+
+--rooms
+INSERT INTO Room (RoomID, HotelID, Price, Amenities, Capacity, View, ExtendableStatus, ProblemDamageStatus)
+VALUES
+-- Hotel 11
+(1101, 11, 100, 'TV, WIFI', 1, 'City', FALSE, 'None'),
+(1102, 11, 150, 'TV, WIFI, Fridge', 2, 'City', TRUE, 'None'),
+(1103, 11, 200, 'TV, AC, Fridge', 3, 'Sea', TRUE, 'None'),
+(1104, 11, 250, 'TV, AC, Mini-bar', 4, 'Sea', FALSE, 'None'),
+(1105, 11, 500, 'Full Kitchen, Jacuzzi', 5, 'Mountain', TRUE, 'None'),
+
+-- Hotel 21
+(2101, 21, 120, 'TV, WIFI', 1, 'City', FALSE, 'None'),
+(2102, 21, 170, 'TV, WIFI, Fridge', 2, 'City', TRUE, 'None'),
+(2103, 21, 220, 'TV, AC, Fridge', 3, 'Sea', TRUE, 'None'),
+(2104, 21, 270, 'TV, AC, Mini-bar', 4, 'Sea', FALSE, 'None'),
+(2105, 21, 550, 'Full Kitchen, Jacuzzi', 5, 'Mountain', TRUE, 'None'),
+
+-- Hotel 31
+(3101, 31, 90, 'TV, WIFI', 1, 'Garden', FALSE, 'None'),
+(3102, 31, 140, 'TV, WIFI, Fridge', 2, 'Garden', TRUE, 'None'),
+(3103, 31, 190, 'TV, AC, Fridge', 3, 'Sea', TRUE, 'None'),
+(3104, 31, 240, 'TV, AC, Mini-bar', 4, 'Sea', FALSE, 'None'),
+(3105, 31, 450, 'Full Kitchen, Jacuzzi', 5, 'Mountain', TRUE, 'None'),
+
+-- Hotel 41
+(4101, 41, 80, 'TV, WIFI', 1, 'Street', FALSE, 'None'),
+(4102, 41, 130, 'TV, WIFI, Fridge', 2, 'Street', TRUE, 'None'),
+(4103, 41, 180, 'TV, AC, Fridge', 3, 'Sea', TRUE, 'None'),
+(4104, 41, 230, 'TV, AC, Mini-bar', 4, 'Sea', FALSE, 'None'),
+(4105, 41, 400, 'Full Kitchen, Jacuzzi', 5, 'Mountain', TRUE, 'None'),
+
+-- Hotel 51
+(5101, 51, 110, 'TV, WIFI', 1, 'Harbor', FALSE, 'None'),
+(5102, 51, 160, 'TV, WIFI, Fridge', 2, 'Harbor', TRUE, 'None'),
+(5103, 51, 210, 'TV, AC, Fridge', 3, 'Sea', TRUE, 'None'),
+(5104, 51, 260, 'TV, AC, Mini-bar', 4, 'Sea', FALSE, 'None'),
+(5105, 51, 600, 'Full Kitchen, Jacuzzi', 5, 'Mountain', TRUE, 'None');
+
+
+--Customers
+INSERT INTO Customer (CustomerID, Name_First, Name_Last, Name_Middle, CustAddress, IDType, IDNumber, CustRegistrationDate)
+VALUES
+(1, 'Alice', 'Anderson', 'A', '101 Apple St', 'SSN', 111222333, '2026-01-01'),
+(2, 'Bob', 'Brown', 'B', '202 Banana St', 'SIN', 222333444, '2026-01-15'),
+(3, 'Charlie', 'Cat', 'C', '303 Cat St', 'DL', 333444555, '2026-02-01'),
+(4, 'David', 'Dog', 'D', '404 Dog St', 'SIN', 444555666, '2026-02-10'),
+(5, 'Eve', 'Elevator', 'E', '505 Echo St', 'Passport', 555666777, '2026-03-01');
+
+
+--Employees
+INSERT INTO Employee (EmployeeID, HotelID, Name_First, Name_Last, Name_Middle, EmpAddress, Position, IsManager)
+VALUES
+(101, 11, 'Adam', 'Ape', 'A', '1 Ape Ave', 'Manager', TRUE),
+(102, 12, 'Arnie', 'Ape', 'B', '2 Ape Ave', 'Manager', TRUE),
+(201, 21, 'Betty', 'Birch', 'C', '1 Birch Ave', 'Manager', TRUE),
+(202, 22, 'Barry', 'Birch', 'D', '2 Birch Ave', 'Manager', TRUE),
+(301, 31, 'Chris', 'Cedar', 'E', '1 Cedar Lane', 'Manager', TRUE),
+(401, 41, 'Dana', 'Delta', 'F', '1 Delta Drive', 'Manager', TRUE),
+(501, 51, 'Eric', 'Echo', 'G', '1 Echo Path', 'Manager', TRUE);
+
+--Bookings
+INSERT INTO Booking (BookID, CustomerID, HotelID, RoomID, BookingDate, StartDate, EndDate)
+VALUES
+(1, 1, 11, 1101, '2026-03-01', '2026-04-10', '2026-04-15'),
+(2, 2, 21, 2102, '2026-03-05', '2026-05-01', '2026-05-07'),
+(3, 3, 31, 3103, '2026-03-10', '2026-06-12', '2026-06-20');
+
+
+--Rentings
+INSERT INTO Renting (RentingID, CustomerID, BookID, HotelID, RoomID, EmployeeID, CheckinDate, CheckoutDate)
+VALUES
+-- Booking transformed to renting
+(1, 1, 1, 11, 1101, 101, '2026-04-10', '2026-04-15'),
+-- Direct walkin, no BookID
+(2, 4, NULL, 41, 4101, 401, '2026-04-01', '2026-04-05');
+
+
+--Payments
+INSERT INTO Pays_For (PayID, RentingID, CustomerID, CardNumber)
+VALUES
+(1, 1, 1, 123456789),
+(2, 2, 4, 987654321);

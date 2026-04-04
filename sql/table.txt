@@ -1,5 +1,5 @@
 CREATE TABLE HotelChain(
-ChainID SERIAL PRIMARY KEY,
+ChainID PRIMARY KEY,
 ChainName VARCHAR,
 ChainAddress VARCHAR,
 NumHotels INTEGER,
@@ -8,7 +8,7 @@ ChainContactPhone VARCHAR
 );
 
 CREATE TABLE Hotel(
-HotelID SERIAL PRIMARY KEY,
+HotelID INTEGER PRIMARY KEY,
 ChainID INTEGER REFERENCES HotelChain(ChainID) ON DELETE CASCADE,
 StarRating INTEGER,
 NumRooms INTEGER,
@@ -18,7 +18,7 @@ HotelContactPhone VARCHAR
 );
 
 CREATE TABLE Room(
-RoomID SERIAL PRIMARY KEY,
+RoomID INTEGER,
 HotelID INTEGER REFERENCES Hotel(HotelID) ON DELETE CASCADE,
 Price INTEGER CHECK (price >= 0),
 Amenities VARCHAR,
@@ -26,21 +26,27 @@ Capacity INTEGER,
 View VARCHAR,
 ExtendableStatus BOOLEAN,
 ProblemDamageStatus VARCHAR
+primary key (RoomID)
+
 );
 
 CREATE TABLE Inst_Amenities(
-RoomID PRIMARY KEY REFERENCES Room(RoomID) ON DELETE CASCADE
+RoomID REFERENCES Room(RoomID) ON DELETE CASCADE
+primary key (RoomID)
+
 );
 
 CREATE TABLE Pays_For(
-PayID SERIAL PRIMARY KEY,
+PayID INTEGER,
 RentingID INTEGER REFERENCES Renting(RentingID) ON DELETE CASCADE,
 CustomerID INTEGER REFERENCES Customer(CustomerID) ON DELETE CASCADE,
 CardNumber INTEGER
+primary key (PayID)
+
 );
 
 CREATE TABLE Customer(
-CustomerID SERIAL PRIMARY KEY,
+CustomerID INTEGER,
 Name_First VARCHAR,
 Name_Last VARCHAR,
 Name_Middle VARCHAR,
@@ -48,10 +54,12 @@ CustAddress VARCHAR,
 IDType VARCHAR,
 IDNumber INTEGER,
 CustRegistrationDate VARCHAR
+primary key (CustomerID)
+
 );
 
 CREATE TABLE Employee(
-EmployeeID SERIAL PRIMARY KEY,
+EmployeeID INTEGER,
 HotelID INTEGER REFERENCES Hotel(HotelID) ON DELETE CASCADE,
 Name_First VARCHAR,
 Name_Last VARCHAR,
@@ -59,20 +67,23 @@ Name_Middle VARCHAR,
 EmpAddress VARCHAR,
 Position VARCHAR,
 IsManager BOOLEAN
+primary key (EmployeeID)
+
 );
 
 CREATE TABLE Booking(
-BookID SERIAL PRIMARY KEY,
+BookID INTEGER,
 CustomerID INTEGER REFERENCES Customer(CustomerID) ON DELETE CASCADE,
 HotelID INTEGER REFERENCES Hotel(HotelID) ON DELETE CASCADE,
 RoomID INTEGER REFERENCES Room(RoomID) ON DELETE CASCADE,
 BookingDate VARCHAR,
 StartDate VARCHAR,
 EndDate VARCHAR
+primary key(BookID)
 );
 
 CREATE TABLE Renting(
-RentingID SERIAL PRIMARY KEY,
+RentingID INTEGER,
 CustomerID INTEGER REFERENCES Customer(CustomerID) ON DELETE CASCADE,
 BookID INTEGER REFERENCES Booking(BookID) ON DELETE CASCADE,
 HotelID INTEGER REFERENCES Hotel(HotelID) ON DELETE CASCADE,
@@ -80,10 +91,11 @@ RoomID INTEGER REFERENCES Room(RoomID) ON DELETE CASCADE,
 EmployeeID INTEGER REFERENCES Employee(EmployeeID) ON DELETE CASCADE,
 CheckinDate VARCHAR,
 CheckoutDate VARCHAR
+primary key(RentingID)
 );
 
 CREATE TABLE Archive(
-ArchiveID SERIAL PRIMARY KEY,
+ArchiveID INTEGER,
 CopyRentingID INTEGER,
 CopyBookID INTEGER,
 CopyCustomerName_First VARCHAR,
@@ -95,4 +107,5 @@ CopyRoomID INTEGEr,
 CopyBookingDate VARCHAR,
 CopyCheckinDate VARCHAR,
 CopyCheckoutDate VARCHAR
+primary key(ArchiveID)
 );
