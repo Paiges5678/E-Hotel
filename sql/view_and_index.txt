@@ -1,0 +1,14 @@
+--INDEX
+--Index 1 - Hotel address, because rooms are usually searched for by area
+CREATE INDEX IF NOT EXISTS ixHotelArea ON Hotel(HotelAddress);
+
+--Index 2 - Room price, because price is also one of the large determining factors of a room booking
+CREATE INDEX IF NOT EXISTS ixRoomPrice ON Room(Price);
+
+--Index 3 - Booking date, need to always check availability for some dates
+CREATE INDEX IF NOT EXISTS ixBookingDate ON Booking(StartDate, EndDate);
+
+--VIEWS
+--View 1 - Num of available rooms per area
+
+--View 2 - Capacity of all rooms for a hotel
