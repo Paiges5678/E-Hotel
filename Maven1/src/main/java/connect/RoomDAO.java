@@ -11,14 +11,14 @@ public class RoomDAO {
                                              String starStr, String chain) throws SQLException {
         List<String[]> results = new ArrayList<>();
         StringBuilder sql = new StringBuilder(
-                "SELECT r.HotelID, r.RoomNumber, h.HotelAddress, r.Capacity, r.Price, r.RoomNumber, r.ExtendableStatus, h.StarRating " +
+                "SELECT r.HotelID, r.RoomNumber, h.HotelAddress, r.Capacity, r.Price, r.RoomNumber, r.RoomView, r.ExtendableStatus, h.StarRating " +
                         "FROM Room r " +
                         "JOIN Hotel h ON r.HotelID = h.HotelID " +
                         "WHERE r.ProblemDamageSTatus = FALSE " +
                         "AND NOT EXISTS(" +
                         "SELECT 1 FROM BOOKING b " +
-                        "WHERE b.HotelID = r.HotelID AND b.RoomBumber = r.RoomNumber " +
-                        "AND (b.StartDate, b.EndDate) OVERLAPS(?,?)" + ") "
+                        "WHERE b.HotelID = r.HotelID AND b.RoomNumber = r.RoomNumber " +
+                        "AND (b.StartDate, b.EndDate) OVERLAPS (?,?)" + ") "
         );
         if (city != null && !city.isEmpty())
             sql.append("AND h.HotelAddress LIKE ? ");
