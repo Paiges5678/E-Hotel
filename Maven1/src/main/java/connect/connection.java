@@ -1,13 +1,23 @@
 package connect;
-
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Properties;
+import java.io.FileInputStream;
+import java.io.IOException;
 
 public class connection {
-    private static final String URL = "jdbc:postgresql://localhost:5432/ehotels_db";
-    private static final String USER = "postgres";
-    private static final String PASSWORD = "M4rc1a32!!";
+    private static final Properties props = loadProps();
+
+    private static Properties loadProps() {
+        Properties p = new Properties();
+        try {
+            p.load(connection.class.getClassLoader().getResourceAsStream("config.properties"));
+        } catch (IOException e) {
+            throw new RuntimeException("Could not load config.properties", e);
+        }
+        return p;
+    }
 
     public static Connection getConnection() throws SQLException {
         try {
@@ -16,10 +26,13 @@ public class connection {
             e.printStackTrace();
             throw new SQLException("PostgreSQL JDBC Driver not found!");
         }
-        return DriverManager.getConnection(URL, USER, PASSWORD);
+        return DriverManager.getConnection(
+                props.getProperty("db.url"),
+                props.getProperty("db.user"),
+                props.getProperty("db.password")
+        );
     }
 
-    // Add this method
     public static String test() {
         return "Connection class is working!";
     }

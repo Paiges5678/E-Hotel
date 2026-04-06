@@ -30,6 +30,7 @@ public class login extends HttpServlet {
         try (Connection db = connection.getConnection()) {
 
             if ("customer".equals(role)) {
+                System.out.println("DEBUG: Checking customer ID = " + id);
                 PreparedStatement ps = db.prepareStatement(
                         "SELECT CustomerID, full_name FROM Customer WHERE CustomerID = ?"
                 );
@@ -37,12 +38,14 @@ public class login extends HttpServlet {
                 ResultSet rs = ps.executeQuery();
 
                 if (rs.next()) {
+                    System.out.println("DEBUG: Customer found - " + rs.getString("full_name"));
                     HttpSession session = request.getSession();
                     session.setAttribute("customerId", rs.getInt("CustomerID"));
                     session.setAttribute("customerName", rs.getString("full_name"));
                     session.setAttribute("role", "customer");
                     response.sendRedirect("customer.jsp");
                 } else {
+                    System.out.println("DEBUG: Customer NOT found");
                     request.setAttribute("error", "Customer ID not found.");
                     request.getRequestDispatcher("login.jsp").forward(request, response);
                 }
@@ -66,9 +69,9 @@ public class login extends HttpServlet {
                 }
             }
 
-        } catch (SQLException e) {
-            request.setAttribute("error", "Database error: " + e.getMessage());
-            request.getRequestDispatcher("login.jsp").forward(request, response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.getWriter().println("ERROR: " + e.getMessage());
         }
     }
 }
