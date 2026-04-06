@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS Room
 	RoomNumber INT NOT NULL,
 	Price DECIMAL(10,2) NOT NULL CHECK (Price >= 0),
 	Capacity INT NOT NULL CHECK (Capacity >=1),
-	RoomView VARCHAR(64) not null CHECK(RoomView IN ('sea', 'mountain')),
+	RoomView VARCHAR(64) CHECK(RoomView IN ('sea', 'mountain')),
 	ExtendableStatus BOOLEAN NOT NULL,
 	ProblemDamageStatus boolean not null,
 	primary key (HotelID, RoomNumber),

@@ -22,10 +22,10 @@
 <h2>Search rooms</h2>
 <form action="customer.jsp" method="post">
     <!--checkin and checkout date select-->
-    <label for ="checkin"> Checkin date: </label>
+    <label for ="checkin"> Check-in date: </label>
     <input type = "date" id ="checkin" name ="checkin" required>
     <br>
-    <label for ="checkin"> Checkout date: </label>
+    <label for ="checkin"> Check-out date: </label>
     <input type = "date" id ="checkout" name ="checkout" required>
     <br>
 
@@ -90,23 +90,27 @@
     <label for ="chain">Chain:</label>
     <select id = "chain" name="chain">
         <option value="">Select Chain</option>
-        <option value="one">1</option>
-        <option value="two">2</option>
-        <option value="three">3</option>
-        <option value="four">4</option>
-        <option value="five">5</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
     </select>
     <br>
 
     <!--other things-->
-    <label>Other: </label>
-    <input type = "checkbox" id = sea" name = "sea" value = "yes">
-    <label for ="sea">Sea View</label>
-    <input type = "checkbox" id = mountain" name = "mountain" value = "yes">
-    <label for ="mountain">Mountain View</label>
-    <input type = "checkbox" id = "extendable" name = "extendable" value = "yes">
-    <label for ="extendable">Extendable</label>
+    <label for="view">Room View:</label>
+    <select id="view" name="view">
+        <option value="">Any / None</option>
+        <option value="sea">Sea View</option>
+        <option value="mountain">Mountain View</option>
+    </select>
     <br>
+
+    <label for="extendable">Extendable:</label>
+    <input type="checkbox" id="extendable" name="extendable" value="yes">
+    <br>
+
     <br>
     <button type="submit" name="action" value="search">Search Available Rooms</button>
 </form>
@@ -117,23 +121,38 @@
     if("search".equals(action)) {
         String checkin = request.getParameter("checkin");
         String checkout = request.getParameter("checkout");
+
+        //Check for valid checkin and checkout date
+        java.time.LocalDate start = java.time.LocalDate.parse(checkin);
+        java.time.LocalDate end = java.time.LocalDate.parse(checkout);
+        java.time.LocalDate today = java.time.LocalDate.now();
+
+        if (start.isAfter(end)) {
+%>
+<p style="color:red; font-weight:bold;">Error: Check-in date cannot be after the check-out date.</p>
+<%
+} else if (start.isBefore(today)) {
+%>
+<p style="color:red; font-weight:bold;">Error: You cannot search for dates in the past.</p>
+<%
+} else {
+    // Only run the search if dates are valid
+    try {
         String city = request.getParameter("city");
         String capacity = request.getParameter("capacity");
         String priceStr = request.getParameter("price");
-        String seaview = request.getParameter("sea");
-        String mountain = request.getParameter("mountain");
+        String view = request.getParameter("view");
         String extend = request.getParameter("extendable");
         String starStr = request.getParameter("star-rating");
-        int price = (priceStr != null && !priceStr.isEmpty()) ? Integer.parseInt(priceStr) : Integer.MAX_VALUE;
         String chain = request.getParameter("chain");
-        try{
-            List<String[]> rooms = RoomDAO.searchRooms(checkin,checkout,city,capacity,priceStr,seaview,mountain,extend,starStr,chain);
+
+        List<String[]> rooms = RoomDAO.searchRooms(checkin, checkout, city, capacity, priceStr, view, extend, starStr, chain);
 %>
 <h2>Available Rooms</h2>
 <%
     if (rooms.isEmpty()){
 %>
-<p>No rooms found matching thiese criteria.</p>
+<p>No rooms found matching these criteria.</p>
 <%
     } else {
 %>
@@ -149,7 +168,7 @@
         <th>Stars</th>
         <th>Action</th>
     </tr>
-<%for (String[] room : rooms) {
+<% for (String[] room : rooms) {
             // room[0]=HotelID, room[1]=RoomNumber, room[2]=Address,
             // room[3]=Capacity, room[4]=Price, room[5]=View,
             // room[6]=Extendable, room[7]=StarRating
@@ -166,20 +185,20 @@
         <td><%= room[7] %></td>
         <td>
             <a href="customer.jsp?action=select&hotelId=<%= room[0] %>&roomNum=<%= room[1] %>&checkin=<%= checkin %>&checkout=<%= checkout %>">
-                <button>Select</button>
+                <button>Book</button>
             </a>
         </td>
     </tr>
     <%      } %>
 </table>
-<%  } %>
-<%
+<%              }
 } catch (Exception e) {
 %>
 <p style="color:red;">Search error: <%= e.getMessage() %></p>
 <%
-        }
-    }
+            }
+        } //close else
+    }//close if
 %>
 
 <%
@@ -226,22 +245,35 @@
 
         if (hotelIdStr != null && roomIdStr != null) {
             try {
+                // Parse dates for validation
+                java.time.LocalDate bStart = java.time.LocalDate.parse(bookCheckin);
+                java.time.LocalDate bEnd   = java.time.LocalDate.parse(bookCheckout);
+                java.time.LocalDate today  = java.time.LocalDate.now();
+
+                // Validation rules
+                if (bStart.isBefore(today)) {
+                    throw new Exception("Check-in date cannot be in the past.");
+                }
+                if (!bEnd.isAfter(bStart)) {
+                    throw new Exception("Check-out date must be after the check-in date.");
+                }
+
                 RoomDAO.bookRoom(
                         customerId,
-                    Integer.parseInt(hotelIdStr),
-                    Integer.parseInt(roomIdStr),
-                    bookCheckin,
-                    bookCheckout
+                        Integer.parseInt(hotelIdStr),
+                        Integer.parseInt(roomIdStr),
+                        bookCheckin,
+                        bookCheckout
                 );
 %>
-<p style="color:green;">
-    Booking confirmed! Hotel <%= hotelIdStr %>, Room <%= roomIdStr %>
-    from <%= bookCheckin %> to <%= bookCheckout %>.
-</p>
-    <%
+        <p style="color:green;">
+            Booking confirmed! Hotel <%= hotelIdStr %>, Room <%= roomIdStr %>
+            from <%= bookCheckin %> to <%= bookCheckout %>.
+        </p>
+<%
             } catch (Exception e) {
 %>
-<p style="color:red;">Booking failed: <%= e.getMessage() %></p>
+        <p style="color:red;">Booking failed: <%= e.getMessage() %></p>
     <%
             }
         }
