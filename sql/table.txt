@@ -1,111 +1,181 @@
-CREATE TABLE HotelChain(
-ChainID PRIMARY KEY,
-ChainName VARCHAR,
-ChainAddress VARCHAR,
-NumHotels INTEGER,
-ChainContactEmail VARCHAR,
-ChainContactPhone VARCHAR
+--1
+CREATE TABLE IF NOT EXISTS Customer
+(
+	-- merging first,middle,last names into one full name column for simplicity
+	--changed the ID type to just the number that the ID has on it
+	CustomerID INT PRIMARY KEY,
+    full_name VARCHAR(64) NOT NULL,
+    sin_number VARCHAR(9) NOT NULL unique,
+    CustAddress VARCHAR(128) NOT NULL,
+    date_of_registration DATE NOT NULL,
+    phone_number VARCHAR(16) NOT NULL
 );
 
-CREATE TABLE Hotel(
-HotelID INTEGER PRIMARY KEY,
-ChainID INTEGER REFERENCES HotelChain(ChainID) ON DELETE CASCADE,
-StarRating INTEGER,
-NumRooms INTEGER,
-HotelAddress VARCHAR,
-HotelContactEmail VARCHAR,
-HotelContactPhone VARCHAR
+--2
+CREATE TABLE IF NOT EXISTS HotelChain
+(
+	ChainID INT primary key,
+	ChainAddress VARCHAR(64) NOT NULL
 );
 
-CREATE TABLE Room(
-RoomID INTEGER,
-HotelID INTEGER REFERENCES Hotel(HotelID) ON DELETE CASCADE,
-Price INTEGER CHECK (price >= 0),
-Amenities VARCHAR,
-Capacity INTEGER,
-View VARCHAR,
-ExtendableStatus BOOLEAN,
-ProblemDamageStatus VARCHAR
-primary key (RoomID)
-
+--3
+CREATE TABLE IF NOT EXISTS ChainContactEmail
+(
+	ChainID INT NOT NULL,
+	Email VARCHAR(64) NOT NULL check (Email like '%@%'),
+	PRIMARY KEY (ChainID, Email),
+	FOREIGN KEY (ChainID) REFERENCES HotelChain(ChainID) ON DELETE CASCADE
 );
 
-CREATE TABLE Inst_Amenities(
-RoomID REFERENCES Room(RoomID) ON DELETE CASCADE
-primary key (RoomID)
-
+--4
+CREATE TABLE IF NOT EXISTS ChainContactPhone
+(
+	ChainID INT NOT NULL,
+	Phone VARCHAR(64) NOT NULL,
+	PRIMARY KEY (ChainID, Phone),
+	FOREIGN KEY (ChainID) REFERENCES HotelChain(ChainID) ON DELETE CASCADE
 );
 
-CREATE TABLE Pays_For(
-PayID INTEGER,
-RentingID INTEGER REFERENCES Renting(RentingID) ON DELETE CASCADE,
-CustomerID INTEGER REFERENCES Customer(CustomerID) ON DELETE CASCADE,
-CardNumber INTEGER
-primary key (PayID)
-
+--5
+CREATE TABLE IF NOT EXISTS Hotel
+(
+	HotelID INT primary key,
+	ChainID INT NOT NULL,
+	StarRating INT CHECK(StarRating BETWEEN 1 AND 5) NOT NULL,
+	HotelAddress VARCHAR(64) NOT NULL unique,
+	-- Instead of counting the number of rooms here by deriving, we can use COUNT on the Room table
+	FOREIGN KEY (ChainID) REFERENCES HotelChain(ChainID)
 );
 
-CREATE TABLE Customer(
-CustomerID INTEGER,
-Name_First VARCHAR,
-Name_Last VARCHAR,
-Name_Middle VARCHAR,
-CustAddress VARCHAR,
-IDType VARCHAR,
-IDNumber INTEGER,
-CustRegistrationDate VARCHAR
-primary key (CustomerID)
-
+--6
+-- Ensure that when adding employees that each hotel adds its managers first
+CREATE TABLE IF NOT EXISTS Employee
+(
+	EmployeeID int primary key,
+    full_name varchar(64) not null,
+    sin_number varchar(9) not null unique,
+    EmpAddress varchar(128) not null,
+    salary numeric(10,2) default 0.00,
+    EmpPosition varchar(64) not null,
+    IsManager boolean not null default false,
+    HotelID int not null,
+    foreign key (HotelID) references Hotel(HotelID) on delete cascade
 );
 
-CREATE TABLE Employee(
-EmployeeID INTEGER,
-HotelID INTEGER REFERENCES Hotel(HotelID) ON DELETE CASCADE,
-Name_First VARCHAR,
-Name_Last VARCHAR,
-Name_Middle VARCHAR,
-EmpAddress VARCHAR,
-Position VARCHAR,
-IsManager BOOLEAN
-primary key (EmployeeID)
-
+--7
+CREATE TABLE IF NOT EXISTS HotelContactEmail
+(
+	HotelID INT NOT NULL,
+	Email VARCHAR(64) NOT NULL check (Email like '%@%'),
+	PRIMARY KEY (HotelID, Email),
+	foreign key (HotelID) references Hotel(HotelID) on delete cascade
 );
 
-CREATE TABLE Booking(
-BookID INTEGER,
-CustomerID INTEGER REFERENCES Customer(CustomerID) ON DELETE CASCADE,
-HotelID INTEGER REFERENCES Hotel(HotelID) ON DELETE CASCADE,
-RoomID INTEGER REFERENCES Room(RoomID) ON DELETE CASCADE,
-BookingDate VARCHAR,
-StartDate VARCHAR,
-EndDate VARCHAR
-primary key(BookID)
+--8
+CREATE TABLE IF NOT EXISTS HotelContactPhone
+(
+	HotelID INT NOT NULL,
+	Phone VARCHAR(64) NOT NULL,
+	PRIMARY KEY (HotelID, Phone),
+	FOREIGN KEY (HotelID) REFERENCES Hotel(HotelID) ON DELETE CASCADE
 );
 
-CREATE TABLE Renting(
-RentingID INTEGER,
-CustomerID INTEGER REFERENCES Customer(CustomerID) ON DELETE CASCADE,
-BookID INTEGER REFERENCES Booking(BookID) ON DELETE CASCADE,
-HotelID INTEGER REFERENCES Hotel(HotelID) ON DELETE CASCADE,
-RoomID INTEGER REFERENCES Room(RoomID) ON DELETE CASCADE,
-EmployeeID INTEGER REFERENCES Employee(EmployeeID) ON DELETE CASCADE,
-CheckinDate VARCHAR,
-CheckoutDate VARCHAR
-primary key(RentingID)
+--9
+CREATE TABLE IF NOT EXISTS Room
+(
+	HotelID INT NOT NULL,
+	RoomNumber INT NOT NULL,
+	Price DECIMAL(10,2) NOT NULL CHECK (Price >= 0),
+	Capacity INT NOT NULL CHECK (Capacity >=1),
+	RoomView VARCHAR(64) not null CHECK(RoomView IN ('sea', 'mountain')),
+	ExtendableStatus BOOLEAN NOT NULL,
+	ProblemDamageStatus boolean not null,
+	primary key (HotelID, RoomNumber),
+	foreign key (HotelID) references Hotel(HotelID) on delete cascade
 );
 
-CREATE TABLE Archive(
-ArchiveID INTEGER,
-CopyRentingID INTEGER,
-CopyBookID INTEGER,
-CopyCustomerName_First VARCHAR,
-CopyCustomerName_Middle VARCHAR,
-CopyCustomerName_Last VARCHAR,
-CopyCustomerID INTEGER,
-CopyHotelID INTEGER,
-CopyRoomID INTEGEr,
-CopyBookingDate VARCHAR,
-CopyCheckinDate VARCHAR,
-CopyCheckoutDate VARCHAR
-primary key(ArchiveID)
+--10
+create table IF NOT EXISTS RoomAmenity
+(
+	HotelID int not null,
+	RoomNumber int NOT null,
+	Amenity varchar(64) not null,
+	primary key (HotelID, RoomNumber, Amenity),
+	foreign key (HotelID, RoomNumber) references Room(HotelID, RoomNumber) on delete cascade
+);
+
+--11
+create table IF NOT EXISTS RoomProblem
+(
+	-- Making the ProblemIDs be serial so that when a problem is ticketed it just takes on a certain ID automatically
+	ProblemID SERIAL primary key, 
+	HotelID INT NOT NULL,
+	RoomNumber INT not null,
+	ProblemDescription VARCHAR(64) NOT NULL,
+	DateReported DATE not null,
+	ResolvedStatus Boolean Default False,
+	Foreign KEY (HotelID, RoomNumber) REFERENCES Room(HotelID, RoomNumber) On delete cascade
+);
+
+--12
+Create table IF NOT EXISTS Booking
+(
+	BookID Serial primary key,
+	CustomerID INT NOT NULL,
+	HotelID INT NOT NULL,
+	RoomNumber int not null,
+	BookingDate Date not null default current_date,
+	StartDate Date not null check(StartDate >= BookingDate),
+	EndDate Date not null check (EndDate > StartDate),
+	foreign key (CustomerID) references Customer(CustomerID) on delete cascade,
+	foreign key (HotelID, RoomNumber) references Room(HotelID, RoomNumber) on delete cascade
+);
+
+--13
+Create table IF NOT EXISTS Renting
+(
+	RentingID Serial primary key,
+	CustomerID INT not null,
+	BookID int null, -- can be null due to walk-in rentals!
+	HotelID int not null,
+	RoomNumber int not null,
+	EmployeeID int not null,
+	CheckinDate Date NOT null,
+	CheckoutDate date not null check(CheckoutDate > CheckinDate),
+	PaymentAmount Decimal(10,2) not null,
+	foreign key (HotelID, RoomNumber) REFERENCES Room(HotelID, RoomNumber),
+	foreign key (CustomerID) references Customer(CustomerID),
+	foreign key (EmployeeID) references Employee(EmployeeID),
+	foreign key (BookID) references Booking(BookID) on delete set null
+);
+
+--14
+create table IF NOT EXISTS BookingArchive
+(
+	ArchiveID serial primary key,
+	BookID Int not null,
+	CustomerID int not null,
+	CustomerName VARCHAR(64) not null,
+	HotelID int not null,
+	RoomNumber int not null,
+	BookingDate date not null,
+	StartDate Date not null,
+	EndDate date not null,
+	ArchivedDate date not null default current_date
+);
+
+--15
+-- Split the archive tables into two different tables 
+create table IF NOT EXISTS RentingArchive
+(
+	ArchiveID serial primary key,
+	RentingID int not null,
+	CustomerID int not null,
+	CustomerName Varchar(64) not null,
+	HotelID int not null,
+	RoomNumber int not null,
+	CheckinDate date not null,
+	CheckoutDate date not null,
+	PaymentAmount decimal(10,2) not null,
+	ArchivedDate Date not null default current_date
 );

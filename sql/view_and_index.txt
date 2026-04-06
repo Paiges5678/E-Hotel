@@ -1,14 +1,43 @@
 --INDEX
---Index 1 - Hotel address, because rooms are usually searched for by area
-CREATE INDEX IF NOT EXISTS ixHotelArea ON Hotel(HotelAddress);
 
---Index 2 - Room price, because price is also one of the large determining factors of a room booking
+-- Index for fast availability search (hotel, room, date range)
+CREATE INDEX idx_booking_dates ON Booking(HotelID, RoomNumber, StartDate, EndDate);
+
+-- Index for customer lookups by SIN (common in employee interface)
+CREATE INDEX idx_customer_sin ON Customer(sin_number);
+
+-- Index for reporting on check-in dates
+CREATE INDEX idx_renting_checkin ON Renting(CheckinDate);
+
 CREATE INDEX IF NOT EXISTS ixRoomPrice ON Room(Price);
 
---Index 3 - Booking date, need to always check availability for some dates
-CREATE INDEX IF NOT EXISTS ixBookingDate ON Booking(StartDate, EndDate);
 
 --VIEWS
---View 1 - Num of available rooms per area
+-- View 1: Available rooms per area (area is the city from HotelAddress and it's always the last word after the last comma)
 
---View 2 - Capacity of all rooms for a hotel
+CREATE VIEW AvailableRoomsByArea AS
+SELECT 
+    SUBSTRING(h.HotelAddress FROM ',\s*([^,]+)$') AS area,
+    r.HotelID,
+    r.RoomNumber,
+    r.Capacity,
+    r.Price
+FROM Room r
+JOIN Hotel h ON r.HotelID = h.HotelID
+WHERE r.ProblemDamageStatus = FALSE
+  AND NOT EXISTS (
+      SELECT 1 FROM Booking b
+      WHERE b.HotelID = r.HotelID
+        AND b.RoomNumber = r.RoomNumber
+        AND b.StartDate <= CURRENT_DATE
+        AND b.EndDate >= CURRENT_DATE
+  );
+
+-- View 2: Aggregated capacity of all rooms per hotel
+CREATE VIEW HotelTotalCapacity AS
+SELECT 
+    HotelID,
+    SUM(Capacity) AS TotalCapacity
+FROM Room
+GROUP BY HotelID;
+

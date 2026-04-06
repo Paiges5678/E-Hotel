@@ -1,45 +1,159 @@
---Trigger 1 - archive booking after its tranformed into a rentin
-CREATE OR REPLACE FUNCTION archive_booking()
+--trigger 1
+CREATE OR REPLACE FUNCTION check_booking_overlap()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO Archive(ArchiveID, CopyRentingID, CopyBookID, CopyCustomerID, CopyRoomID, CopyBookingDate)
-    VALUES (nextval('archive_seq'), NEW.RentingID, NEW.BookID, New.CustomerID, NEW.HotelID, NEW.RoomID,
-        (SELECT BookingDate FROM Booking WHERE BookID = NEW.BookID));
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
---Trigger 2 - don't allow booking if StartDate is after EndDate
-CREATE OR REPLACE FUNCTION check_date()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.StartDate >=New.EndDate THEN
-        RAISE EXCEPTION 'End date must be after Start date.';
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trigger_check_date
-BEFORE INSERT OR UPDATE ON Booking
-FOR EACH ROW EXECUTE FUNCTION check_date();
-
---Trigger 3 - each hotel has only 1 manager
-CREATE OF REPLACE FUNCTION single_manager()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.IsManager = TRUE THEN
-        UPDATE Employee
-        SET IsManager = FALSE
+    IF EXISTS (
+        SELECT 1 FROM Booking
         WHERE HotelID = NEW.HotelID
-        AND IsManager = TRUE
-        AND EmployeeID != NEW.EmployeeID;
+          AND RoomNumber = NEW.RoomNumber
+          AND (NEW.StartDate, NEW.EndDate) OVERLAPS (StartDate, EndDate)
+    ) THEN
+        RAISE EXCEPTION 'Room % is already booked for the selected dates (from % to %)', 
+                        NEW.RoomNumber, NEW.StartDate, NEW.EndDate;
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE TRIGGER trg_booking_overlap
+BEFORE INSERT OR UPDATE ON Booking
+FOR EACH ROW
+EXECUTE FUNCTION check_booking_overlap();
 
-CREATE TRIGGGER trigger_single_manager
-BEFORE INSERT OR UPDATE ON Employee
-FOR EACH ROW EXECUTE FUNCTION single_manager()
+--trigger 2
+CREATE OR REPLACE FUNCTION ensure_hotel_has_manager()
+RETURNS TRIGGER AS $$
+DECLARE
+    manager_count INT;
+BEGIN
+		-- after any change, each hotel has >=1 manager.
+    -- This trigger runs AFTER INSERT OR UPDATE, so it will not roll back the current change if it caused a violation.
+    
+    -- Count managers for the hotel of the affected employee
+    SELECT COUNT(*) INTO manager_count
+    FROM Employee
+    WHERE HotelID = NEW.HotelID AND IsManager = TRUE;
+    
+    IF manager_count = 0 THEN
+        RAISE EXCEPTION 'Hotel % must have at least one manager.', NEW.HotelID;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_ensure_manager_after_update
+AFTER INSERT OR UPDATE OF IsManager, HotelID ON Employee
+FOR EACH ROW
+EXECUTE FUNCTION ensure_hotel_has_manager();
+
+-- Trigger 3
+CREATE OR REPLACE FUNCTION prevent_last_manager_deletion()
+RETURNS TRIGGER AS $$
+DECLARE
+    manager_count INT;
+BEGIN
+    IF OLD.IsManager = TRUE THEN
+        SELECT COUNT(*) INTO manager_count
+        FROM Employee
+        WHERE HotelID = OLD.HotelID AND IsManager = TRUE AND EmployeeID != OLD.EmployeeID;
+        
+        IF manager_count = 0 THEN
+            RAISE EXCEPTION 'Cannot delete the last manager of hotel %', OLD.HotelID;
+        END IF;
+    END IF;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_prevent_last_manager_deletion
+BEFORE DELETE ON Employee
+FOR EACH ROW
+EXECUTE FUNCTION prevent_last_manager_deletion();
+
+
+-- trigger 4
+CREATE OR REPLACE FUNCTION prevent_damaged_room_booking()
+RETURNS TRIGGER AS $$
+DECLARE
+    room_damaged BOOLEAN;
+BEGIN
+    SELECT ProblemDamageStatus INTO room_damaged
+    FROM Room
+    WHERE HotelID = NEW.HotelID AND RoomNumber = NEW.RoomNumber;
+    
+    IF room_damaged THEN
+        RAISE EXCEPTION 'Cannot book room % because it is marked as damaged.', NEW.RoomNumber;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_prevent_damaged_room_booking
+BEFORE INSERT OR UPDATE ON Booking
+FOR EACH ROW
+EXECUTE FUNCTION prevent_damaged_room_booking();
+
+
+-- trigger 5
+CREATE OR REPLACE FUNCTION archive_booking_on_rent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.BookID IS NOT NULL THEN
+        -- Move the booking to archive
+        INSERT INTO BookingArchive (BookID, CustomerID, CustomerName, HotelID, RoomNumber, BookingDate, StartDate, EndDate, ArchivedDate)
+        SELECT BookID, CustomerID, (SELECT full_name FROM Customer WHERE CustomerID = Booking.CustomerID),
+               HotelID, RoomNumber, BookingDate, StartDate, EndDate, CURRENT_DATE
+        FROM Booking
+        WHERE BookID = NEW.BookID;
+
+        -- Delete the original booking (it is now archived)
+        DELETE FROM Booking WHERE BookID = NEW.BookID;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_archive_booking_on_rent
+AFTER INSERT ON Renting
+FOR EACH ROW
+EXECUTE FUNCTION archive_booking_on_rent();
+
+
+-- trigger 6
+CREATE OR REPLACE FUNCTION archive_renting_on_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO RentingArchive (RentingID, CustomerID, CustomerName, HotelID, RoomNumber, CheckinDate, CheckoutDate, PaymentAmount, ArchivedDate)
+    VALUES (OLD.RentingID, OLD.CustomerID,
+            (SELECT full_name FROM Customer WHERE CustomerID = OLD.CustomerID),
+            OLD.HotelID, OLD.RoomNumber, OLD.CheckinDate, OLD.CheckoutDate, OLD.PaymentAmount, CURRENT_DATE);
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_archive_renting_on_delete
+BEFORE DELETE ON Renting
+FOR EACH ROW
+EXECUTE FUNCTION archive_renting_on_delete();
+
+
+-- trigger 7
+CREATE OR REPLACE FUNCTION archive_booking_on_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Only archive if this booking is not linked to any renting
+    IF NOT EXISTS (SELECT 1 FROM Renting WHERE BookID = OLD.BookID) THEN
+        INSERT INTO BookingArchive (BookID, CustomerID, CustomerName, HotelID, RoomNumber, BookingDate, StartDate, EndDate, ArchivedDate)
+        VALUES (OLD.BookID, OLD.CustomerID,
+                (SELECT full_name FROM Customer WHERE CustomerID = OLD.CustomerID),
+                OLD.HotelID, OLD.RoomNumber, OLD.BookingDate, OLD.StartDate, OLD.EndDate, CURRENT_DATE);
+    END IF;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_archive_booking_on_delete
+BEFORE DELETE ON Booking
+FOR EACH ROW
+EXECUTE FUNCTION archive_booking_on_delete();
