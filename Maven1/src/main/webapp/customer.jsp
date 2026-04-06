@@ -6,7 +6,7 @@
     Integer customerId = (Integer) session.getAttribute("customerId");
     String customerName = (String) session.getAttribute("customerName");
     if (customerId == null) {
-        response.sendRedirect("login.jsp");
+        response.sendRedirect("index.jsp");
         return;
     }
 %>
@@ -288,9 +288,6 @@
 %>
 <p style="color:red;">Error loading bookings: <%= e.getMessage() %></p>
 <%  } %>
-
-<br>
-<a href="login.jsp">← Logout</a>
 
 <br>
 <a href="index.jsp">← Return</a>

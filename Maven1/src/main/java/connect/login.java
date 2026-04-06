@@ -16,62 +16,187 @@ public class login extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        String role = request.getParameter("role");
-        String idStr = request.getParameter("id");
-
-        if (idStr == null || idStr.isEmpty()) {
-            request.setAttribute("error", "Please enter your ID.");
-            request.getRequestDispatcher("login.jsp").forward(request, response);
-            return;
-        }
-
-        int id = Integer.parseInt(idStr);
+        String action = request.getParameter("action");
+        String role   = request.getParameter("role");   // customer or employee
 
         try (Connection db = connection.getConnection()) {
 
-            if ("customer".equals(role)) {
-                System.out.println("DEBUG: Checking customer ID = " + id);
-                PreparedStatement ps = db.prepareStatement(
-                        "SELECT CustomerID, full_name FROM Customer WHERE CustomerID = ?"
-                );
-                ps.setInt(1, id);
-                ResultSet rs = ps.executeQuery();
+            if ("signup".equals(action)) {
+                handleSignup(request, response, db);
 
-                if (rs.next()) {
-                    System.out.println("DEBUG: Customer found - " + rs.getString("full_name"));
-                    HttpSession session = request.getSession();
-                    session.setAttribute("customerId", rs.getInt("CustomerID"));
-                    session.setAttribute("customerName", rs.getString("full_name"));
-                    session.setAttribute("role", "customer");
-                    response.sendRedirect("customer.jsp");
+            } else if ("login".equals(action)) {
+                if ("customer".equals(role)) {
+                    handleCustomerLogin(request, response, db);
+                } else if ("employee".equals(role)) {
+                    handleEmployeeLogin(request, response, db);
                 } else {
-                    System.out.println("DEBUG: Customer NOT found");
-                    request.setAttribute("error", "Customer ID not found.");
-                    request.getRequestDispatcher("login.jsp").forward(request, response);
+                    forwardError(request, response, "Unknown role: " + role);
                 }
 
-            } else if ("employee".equals(role)) {
-                PreparedStatement ps = db.prepareStatement(
-                        "SELECT EmployeeID, full_name FROM Employee WHERE EmployeeID = ?"
-                );
-                ps.setInt(1, id);
-                ResultSet rs = ps.executeQuery();
-
-                if (rs.next()) {
-                    HttpSession session = request.getSession();
-                    session.setAttribute("employeeId", rs.getInt("EmployeeID"));
-                    session.setAttribute("employeeName", rs.getString("full_name"));
-                    session.setAttribute("role", "employee");
-                    response.sendRedirect("employee.jsp");
-                } else {
-                    request.setAttribute("error", "Employee ID not found.");
-                    request.getRequestDispatcher("login.jsp").forward(request, response);
-                }
+            } else {
+                forwardError(request, response, "Unknown action.");
             }
 
         } catch (Exception e) {
             e.printStackTrace();
-            response.getWriter().println("ERROR: " + e.getMessage());
+            forwardError(request, response,
+                    "Database connection failed: " + e.getMessage()
+                            + " — check that your JDBC driver jar is in WEB-INF/lib "
+                            + "and that connection.getConnection() has the right URL/user/password.");
         }
+    }
+
+    // Customer login — look up by CustomerID
+    private void handleCustomerLogin(HttpServletRequest request,
+                                     HttpServletResponse response,
+                                     Connection db)
+            throws ServletException, IOException, SQLException {
+
+        String idStr = request.getParameter("id");
+        if (idStr == null || idStr.isEmpty()) {
+            forwardError(request, response, "Please enter your Customer ID.");
+            return;
+        }
+
+        int id = Integer.parseInt(idStr);
+        System.out.println("DEBUG customerLogin: id=" + id);
+
+        PreparedStatement ps = db.prepareStatement(
+                "SELECT CustomerID, full_name FROM Customer WHERE CustomerID = ?"
+        );
+        ps.setInt(1, id);
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+            HttpSession session = request.getSession();
+            session.setAttribute("customerId",   rs.getInt("CustomerID"));
+            session.setAttribute("customerName", rs.getString("full_name"));
+            session.setAttribute("role",         "customer");
+            System.out.println("DEBUG customerLogin: found " + rs.getString("full_name"));
+            response.sendRedirect("customer.jsp");
+        } else {
+            System.out.println("DEBUG customerLogin: not found");
+            forwardError(request, response, "No customer found with ID " + id + ".");
+        }
+    }
+
+    // Employee login — look up by EmployeeID, enforce IsManager if toggle
+    private void handleEmployeeLogin(HttpServletRequest request,
+                                     HttpServletResponse response,
+                                     Connection db)
+            throws ServletException, IOException, SQLException {
+
+        String idStr   = request.getParameter("id");
+        String empRole = request.getParameter("empRole"); // manager or employee
+
+        if (idStr == null || idStr.isEmpty()) {
+            forwardError(request, response, "Please enter your Employee ID.");
+            return;
+        }
+
+        int id = Integer.parseInt(idStr);
+        boolean wantsManager = "manager".equalsIgnoreCase(empRole);
+        System.out.println("DEBUG employeeLogin: id=" + id + " wantsManager=" + wantsManager);
+
+        PreparedStatement ps = db.prepareStatement(
+                "SELECT EmployeeID, full_name, IsManager, HotelID FROM Employee WHERE EmployeeID = ?"
+        );
+        ps.setInt(1, id);
+        ResultSet rs = ps.executeQuery();
+
+        if (!rs.next()) {
+            forwardError(request, response, "No employee found with ID " + id + ".");
+            return;
+        }
+
+        boolean isManager = rs.getBoolean("IsManager");
+
+        // Block if Manager is toggled but isManager is false
+        if (wantsManager && !isManager) {
+            forwardError(request, response,
+                    "Employee #" + id + " does not have manager privileges.");
+            return;
+        }
+
+        HttpSession session = request.getSession();
+        session.setAttribute("employeeId",   rs.getInt("EmployeeID"));
+        session.setAttribute("employeeName", rs.getString("full_name"));
+        session.setAttribute("hotelId",      rs.getInt("HotelID"));
+        session.setAttribute("isManager",    isManager);
+        session.setAttribute("role",         wantsManager ? "manager" : "employee");
+
+        System.out.println("DEBUG employeeLogin: found " + rs.getString("full_name")
+                + " isManager=" + isManager);
+
+        // Send managers to a different page if you have one otherwise both go to employee.jsp
+        response.sendRedirect(wantsManager ? "manager.jsp" : "employee.jsp");
+    }
+
+    // Customer sign-Up — insert new row into customer table
+    private void handleSignup(HttpServletRequest request,
+                              HttpServletResponse response,
+                              Connection db)
+            throws ServletException, IOException, SQLException {
+
+        // Parse and validate inputs
+        String customerIDStr = request.getParameter("customerID");
+        String fullName      = request.getParameter("fullName");
+        String sin           = request.getParameter("sin");
+        String address       = request.getParameter("address");
+        String dateReg       = request.getParameter("dateOfRegistration");
+        String phone         = request.getParameter("phone");
+
+        if (customerIDStr == null || fullName == null || sin == null
+                || address == null || dateReg == null || phone == null
+                || fullName.trim().isEmpty() || sin.trim().isEmpty()) {
+            forwardError(request, response, "All fields are required.");
+            return;
+        }
+
+        int customerID = Integer.parseInt(customerIDStr);
+
+        // Check for duplicate id or sin before inserting
+        PreparedStatement checkPs = db.prepareStatement(
+                "SELECT 1 FROM Customer WHERE CustomerID = ? OR sin_number = ?"
+        );
+        checkPs.setInt(1, customerID);
+        checkPs.setString(2, sin);
+        ResultSet checkRs = checkPs.executeQuery();
+        if (checkRs.next()) {
+            forwardError(request, response,
+                    "A customer with that ID or SIN already exists.");
+            return;
+        }
+
+        // Insert the new customer
+        PreparedStatement ps = db.prepareStatement(
+                "INSERT INTO Customer (CustomerID, full_name, sin_number, CustAddress, " +
+                        "date_of_registration, phone_number) VALUES (?, ?, ?, ?, ?, ?)"
+        );
+        ps.setInt(1, customerID);
+        ps.setString(2, fullName);
+        ps.setString(3, sin);
+        ps.setString(4, address);
+        ps.setDate(5, Date.valueOf(dateReg));
+        ps.setString(6, phone);
+        ps.executeUpdate();
+
+        System.out.println("DEBUG signup: created customer id=" + customerID);
+
+        // Auto-login the new customer
+        HttpSession session = request.getSession();
+        session.setAttribute("customerId",   customerID);
+        session.setAttribute("customerName", fullName);
+        session.setAttribute("role",         "customer");
+        response.sendRedirect("customer.jsp");
+    }
+
+    // attach error message and forward back to index.jsp
+    private void forwardError(HttpServletRequest request,
+                              HttpServletResponse response,
+                              String message)
+            throws ServletException, IOException {
+        request.setAttribute("error", message);
+        request.getRequestDispatcher("index.jsp").forward(request, response);
     }
 }
