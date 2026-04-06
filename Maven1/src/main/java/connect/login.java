@@ -119,11 +119,11 @@ public class login extends HttpServlet {
         }
 
         HttpSession session = request.getSession();
-        session.setAttribute("employeeId",   rs.getInt("EmployeeID"));
+        session.setAttribute("employeeId", rs.getInt("EmployeeID"));
         session.setAttribute("employeeName", rs.getString("full_name"));
-        session.setAttribute("hotelId",      rs.getInt("HotelID"));
-        session.setAttribute("isManager",    isManager);
-        session.setAttribute("role",         wantsManager ? "manager" : "employee");
+        session.setAttribute("hotelId", rs.getInt("HotelID"));
+        session.setAttribute("isManager",isManager);
+        session.setAttribute("role", wantsManager ? "manager" : "employee");
 
         System.out.println("DEBUG employeeLogin: found " + rs.getString("full_name")
                 + " isManager=" + isManager);
@@ -140,11 +140,11 @@ public class login extends HttpServlet {
 
         // Parse and validate inputs
         String customerIDStr = request.getParameter("customerID");
-        String fullName      = request.getParameter("fullName");
-        String sin           = request.getParameter("sin");
-        String address       = request.getParameter("address");
-        String dateReg       = request.getParameter("dateOfRegistration");
-        String phone         = request.getParameter("phone");
+        String fullName = request.getParameter("fullName");
+        String sin = request.getParameter("sin");
+        String address = request.getParameter("address");
+        String dateReg = request.getParameter("dateOfRegistration");
+        String phone= request.getParameter("phone");
 
         if (customerIDStr == null || fullName == null || sin == null
                 || address == null || dateReg == null || phone == null
