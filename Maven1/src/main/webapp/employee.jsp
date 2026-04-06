@@ -1,4 +1,7 @@
-<%@ page import="java.sql.*, java.util.Date, java.text.SimpleDateFormat, connect.connection"%>
+<%@ page import="connect.connection" %>
+<%@ page import="java.sql.*, java.util.*, java.text.SimpleDateFormat" %>
+<%@ page import="java.util.List, java.util.Map, java.util.ArrayList, java.util.HashMap" %>
+<%@ page import="java.sql.Date" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%
     String message = "";
@@ -116,9 +119,9 @@
             rs = ps.executeQuery();
 
             // Put the results found in a list (availableRooms)
-            List<Map<String, Object>> availableRooms = new ArrayList<>();
+            List<Map<String, Object>> availableRooms = new ArrayList<Map<String, Object>>();
             while (rs.next()) {
-                Map<String, Object> room = new HashMap<>();
+                Map<String, Object> room = new HashMap<String, Object>();
                 room.put("roomNumber", rs.getInt("RoomNumber"));
                 room.put("price", rs.getDouble("Price"));
                 room.put("capacity", rs.getInt("Capacity"));
@@ -342,7 +345,7 @@
 
     <!-- CHECK-IN -->
     <div class="section">
-        <h2>Check-In (Booking → Renting)</h2>
+        <h2>Check-In (Booking to Renting)</h2>
         <form method="post">
             <input type="hidden" name="action" value="checkin">
             Customer ID: <input type="number" name="customerId" required><br>
@@ -464,7 +467,7 @@
 
     <!-- CUSTOMER SEARCH SECTION (copied from customer.jsp) -->
     <div class="section">
-        <h2>🔎 Search Available Rooms (Customer View)</h2>
+        <h2>Search Available Rooms</h2>
 
         <form action="employeeDashboard.jsp" method="post">
             <input type="hidden" name="action" value="customerSearch">
