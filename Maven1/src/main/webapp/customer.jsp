@@ -1,16 +1,24 @@
 <%@page language="java" contentType="text/html; charset=utf-8" pageEncoding="UTF-8"%>
-<%@ page import="connect.connection" %>
+<%@ page import="connect.RoomDAO" %>
 <%@ page import ="java.sql.*" %>
-<%@ page import ="java.util.ArrayList"%>
-
+<%@ page import ="java.util.List"%>
+<%
+    Integer customerId = (Integer) session.getAttribute("customerId");
+    String customerName = (String) session.getAttribute("customerName");
+    if (customerId == null) {
+        response.sendRedirect("login.jsp");
+        return;
+    }
+%>
 <html>
 <head>
-    <title>E-Hotel - Customer</title>
+    <title>Customer Booking and Viewing</title>
 </head>
 <body>
 
 
 <h1 style = "text-align: center;">Customer View</h1>
+<p style="text-align:center;">Hi, <%= customerName %> (ID: <%= customerId %>)</p>
 <h2>Search rooms</h2>
 <form action="customer.jsp" method="post">
     <!--checkin and checkout date select-->
@@ -68,15 +76,6 @@
     <input type = "number" id = "capacity" name ="capacity" min = "1" max = "10" placeholder = "e.g. 1, 2, 3...">
     <br>
 
-    <!--room size-->
-    <label for ="size">Size:</label>
-    <select id = "size" name="size">
-        <option value="">Select Size</option>
-        <option value="Single">Single</option>
-        <option value="Double">Double</option>
-    </select>
-    <br>
-
     <!--minimum star rating-->
     <label for="star-rating">Minimum star rating (1-5):</label>
     <input type="number" id="star-rating" name="star-rating" min = "1" max = "5" placeholder="e.g. 1">
@@ -110,7 +109,6 @@
     <br>
     <br>
     <button type="submit" name="action" value="search">Search Available Rooms</button>
-
 </form>
 
 <!--SEARCH results-->
@@ -125,11 +123,177 @@
         String seaview = request.getParameter("sea");
         String mountain = request.getParameter("mountain");
         String extend = request.getParameter("extendable");
+        String starStr = request.getParameter("star-rating");
         int price = (priceStr != null && !priceStr.isEmpty()) ? Integer.parseInt(priceStr) : Integer.MAX_VALUE;
-        // TODO: replace with real DB call
-        // rooms = connection.roomSearch(checkin, checkout, capacity, city, price, seaview, mountain, extend);
-    }
-    else{}
+        String chain = request.getParameter("chain");
+        try{
+            List<String[]> rooms = RoomDAO.searchRooms(checkin,checkout,city,capacity,priceStr,seaview,mountain,extend,starStr,chain);
+%>
+<h2>Available Rooms</h2>
+<%
+    if (rooms.isEmpty()){
+%>
+<p>No rooms found matching thiese criteria.</p>
+<%
+    } else {
+%>
+<table border = "1">
+    <tr>
+        <th>Hotel ID</th>
+        <th>Room #</th>
+        <th>Address</th>
+        <th>Capacity</th>
+        <th>Price/Night</th>
+        <th>View</th>
+        <th>Extendable</th>
+        <th>Stars</th>
+        <th>Action</th>
+    </tr>
+<%for (String[] room : rooms) {
+            // room[0]=HotelID, room[1]=RoomNumber, room[2]=Address,
+            // room[3]=Capacity, room[4]=Price, room[5]=View,
+            // room[6]=Extendable, room[7]=StarRating
 %>
 
+    <tr>
+        <td><%= room[0] %></td>
+        <td><%= room[1] %></td>
+        <td><%= room[2] %></td>
+        <td><%= room[3] %></td>
+        <td>$<%= room[4] %></td>
+        <td><%= room[5] %></td>
+        <td><%= room[6] %></td>
+        <td><%= room[7] %></td>
+        <td>
+            <a href="customer.jsp?action=select&hotelId=<%= room[0] %>&roomNum=<%= room[1] %>&checkin=<%= checkin %>&checkout=<%= checkout %>">
+                <button>Select</button>
+            </a>
+        </td>
+    </tr>
+    <%      } %>
+</table>
+<%  } %>
+<%
+} catch (Exception e) {
+%>
+<p style="color:red;">Search error: <%= e.getMessage() %></p>
+<%
+        }
+    }
+%>
+
+<%
+    String selectedHotel = request.getParameter("hotelId");
+    String selectedRoom  = request.getParameter("roomNum");
+    String preCheckin    = request.getParameter("checkin");
+    String preCheckout   = request.getParameter("checkout");
+
+    if (selectedHotel == null) selectedHotel = "";
+    if (selectedRoom  == null) selectedRoom  = "";
+    if (preCheckin    == null) preCheckin    = "";
+    if (preCheckout   == null) preCheckout   = "";
+%>
+
+<h2>Book a Room</h2>
+<form action="customer.jsp" method="post">
+    <input type="hidden" name="action" value="book">
+
+    <label for="hotel-id">Hotel ID:</label>
+    <input type="number" id="hotel-id" name="hotel-id" value="<%= selectedHotel %>" required>
+    <br>
+
+    <label for="room-id">Room Number:</label>
+    <input type="number" id="room-id" name="room-id" value="<%= selectedRoom %>" required>
+    <br>
+
+    <label for="booking-checkin">Check-in Date:</label>
+    <input type="date" id="booking-checkin" name="booking-checkin" value="<%= preCheckin %>" required>
+    <br>
+
+    <label for="booking-checkout">Check-out Date:</label>
+    <input type="date" id="booking-checkout" name="booking-checkout" value="<%= preCheckout %>" required>
+    <br><br>
+
+    <button type="submit">Book Room</button>
+</form>
+
+    <%
+    if ("book".equals(action)) {
+        String hotelIdStr   = request.getParameter("hotel-id");
+        String roomIdStr    = request.getParameter("room-id");
+        String bookCheckin  = request.getParameter("booking-checkin");
+        String bookCheckout = request.getParameter("booking-checkout");
+
+        if (hotelIdStr != null && roomIdStr != null) {
+            try {
+                RoomDAO.bookRoom(
+                        customerId,
+                    Integer.parseInt(hotelIdStr),
+                    Integer.parseInt(roomIdStr),
+                    bookCheckin,
+                    bookCheckout
+                );
+%>
+<p style="color:green;">
+    Booking confirmed! Hotel <%= hotelIdStr %>, Room <%= roomIdStr %>
+    from <%= bookCheckin %> to <%= bookCheckout %>.
+</p>
+    <%
+            } catch (Exception e) {
+%>
+<p style="color:red;">Booking failed: <%= e.getMessage() %></p>
+    <%
+            }
+        }
+    }
+%>
+
+<%--current Bookings--%>
+<h2>Your Current Bookings</h2>
+<%
+    try {
+        List<String[]> bookings = RoomDAO.getBookingsByCustomer(customerId);
+        if (bookings.isEmpty()) {
+%>
+<p>You have no current bookings.</p>
+<%
+} else {
+%>
+<table border="1">
+    <tr>
+        <th>Booking ID</th>
+        <th>Hotel</th>
+        <th>Room #</th>
+        <th>Check-in</th>
+        <th>Check-out</th>
+    </tr>
+    <%
+        for (String[] b : bookings) {
+            // b[0]=BookID, b[1]=HotelAddress, b[2]=RoomNumber, b[3]=StartDate, b[4]=EndDate
+    %>
+    <tr>
+        <td><%= b[0] %></td>
+        <td><%= b[1] %></td>
+        <td><%= b[2] %></td>
+        <td><%= b[3] %></td>
+        <td><%= b[4] %></td>
+    </tr>
+    <%
+        }
+    %>
+</table>
+<%
+    }
+} catch (Exception e) {
+%>
+<p style="color:red;">Error loading bookings: <%= e.getMessage() %></p>
+<%  } %>
+
+<br>
+<a href="login.jsp">← Logout</a>
+
+<br>
+<a href="index.jsp">← Return</a>
 </body>
+</html>
+
