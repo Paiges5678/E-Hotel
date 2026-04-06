@@ -1,1 +1,8 @@
 config.properties
+
+target/
+.smarttomcat/
+*.class
+.settings/
+.project
+.classpath
