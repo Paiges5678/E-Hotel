@@ -9,7 +9,7 @@
     PreparedStatement ps = null;
     ResultSet rs = null;
 
-    int defaultEmployeeId = 9001;
+    int defaultEmployeeId = 101;
 
     // Get employee info from session or default
     Integer employeeIdObj = (Integer) session.getAttribute("employeeId");

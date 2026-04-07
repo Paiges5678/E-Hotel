@@ -1,8 +1,10 @@
 <%@ page import="java.sql.*, java.util.*, connect.connection" %>
+<%@ page import="java.sql.Date" %>
 <%
     //We need to set local variables for the data we from the session (sent from employeeDashboard.jsp)
     List<Map<String, Object>> availableRooms = (List<Map<String, Object>>) session.getAttribute("availableRooms");
     String customerSin =(String) session.getAttribute("customerSin");
+    Integer sessionCustomerId = (Integer) session.getAttribute("customerId");
     String customerName =(String) session.getAttribute("customerName");
     String customerAddress= (String) session.getAttribute("customerAddress");
     String customerPhone = (String) session.getAttribute("customerPhone");
@@ -33,18 +35,18 @@
                 customerId = rs.getInt("CustomerID");
             } else {
                 //If the customer doesnt already exist well add a new one
+                customerId = sessionCustomerId;
                 ps = conn.prepareStatement(
-                    "INSERT INTO Customer (full_name, sin_number, CustAddress, date_of_registration, phone_number) " +
-                    "VALUES (?, ?, ?, CURRENT_DATE, ?) RETURNING CustomerID"
+                    "INSERT INTO Customer (CustomerID, full_name, sin_number, CustAddress, date_of_registration, phone_number) " +
+                    "VALUES (?, ?, ?, ?, CURRENT_DATE, ?)"
                 );
-                ps.setString(1, customerName);
-                ps.setString(2, customerSin);
-                ps.setString(3, customerAddress);
-                ps.setString(4, customerPhone);
-                rs = ps.executeQuery();
-                if (rs.next()) {
-                    customerId = rs.getInt("CustomerID");
-                }
+                ps.setInt(1, customerId);
+                ps.setString(2, customerName);
+                ps.setString(3, customerSin);
+                ps.setString(4, customerAddress);
+                ps.setString(5, customerPhone);
+                ps.executeUpdate();
+
             }
 
             //Now that customer has been updated we can Create a new rental

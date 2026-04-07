@@ -15,8 +15,15 @@
 
     //STILL NEED TO ADD A WAY TO GET THE EMPLOYEE NUMBER FROM THE LOGIN PAGE
     //Adding default for now TAKE THIS OUT LATER LACIA!!!
-    int defaultEmployeeId = 9001; // or whatever employee ID you want to use for now
+    int defaultEmployeeId = 101; // or whatever employee ID you want to use for now
 
+    // Set default employee info in session if not already set
+    if (session.getAttribute("employeeId") == null) {
+        session.setAttribute("employeeId", defaultEmployeeId);
+    }
+    if (session.getAttribute("employeeHotelId") == null) {
+        session.setAttribute("employeeHotelId", 11); // Use a valid hotel ID that has rooms
+    }
     // Look up their hotel ID (for when we add new customers and need the hotel ID we can just get it from the employee number
     Connection tempConn = null;
     PreparedStatement tempPs = null;
@@ -29,10 +36,10 @@
         if (tempRs.next()) {
             session.setAttribute("employeeHotelId", tempRs.getInt("HotelID"));
         } else {
-            session.setAttribute("employeeHotelId", 101); // fallback
+            session.setAttribute("employeeHotelId", 11); // fallback
         }
         } catch (Exception e) {
-            session.setAttribute("employeeHotelId", 101);
+            session.setAttribute("employeeHotelId", 11);
         } finally {
             if (tempConn != null) try { tempConn.close(); } catch (SQLException e) {}
         }
@@ -93,6 +100,7 @@
 
             //give customer info given in through a form their own variables
             String customerSin = request.getParameter("customerSin");
+            int customerId = Integer.parseInt(request.getParameter("customerId"));
             String customerName = request.getParameter("customerName");
             String customerAddress = request.getParameter("customerAddress");
             String customerPhone = request.getParameter("customerPhone");
@@ -108,7 +116,7 @@
             ps = conn.prepareStatement(
                 "SELECT r.HotelID, r.RoomNumber, r.Price, r.Capacity, r.RoomView " + "FROM Room r " + "WHERE r.HotelID = ? " + "AND r.Capacity >= ? " +
                 "AND r.RoomView = ? " + "AND r.ProblemDamageStatus = FALSE " + "AND NOT EXISTS ( " +"SELECT 1 FROM Renting rt " +
-                "WHERE rt.HotelID = r.HotelID " +"AND rt.RoomNumber = r.RoomNumber " +"AND rt.CheckinDate < ?" +"AND rt.CheckoutDate > ?" +
+                "WHERE rt.HotelID = r.HotelID " +"AND rt.RoomNumber = r.RoomNumber " +"AND rt.CheckinDate < ? " + "AND rt.CheckoutDate > ?" +
                 ")" + "ORDER BY r.Price LIMIT 10"
             );
             ps.setInt(1, hotelId);
@@ -135,6 +143,7 @@
                 //Store all the available rooms (the rooms in the list) in session before heading to selectRoom.jsp
                 session.setAttribute("availableRooms", availableRooms);
                 session.setAttribute("customerSin", customerSin);
+                session.setAttribute("customerId", customerId);
                 session.setAttribute("customerName", customerName);
                 session.setAttribute("customerAddress", customerAddress);
                 session.setAttribute("customerPhone", customerPhone);
@@ -142,7 +151,7 @@
                 session.setAttribute("checkoutDate", checkoutDate);
                 session.setAttribute("paymentAmount", paymentAmount);
 
-                //Now when the emplyoee goes to display the available rooms, theyll be shown in selectRoom.jsp where well finish the rental!!
+                //Now when the employee goes to display the available rooms, theyll be shown in selectRoom.jsp where well finish the rental!!
                 response.sendRedirect("selectRoom.jsp");
                 return;
             }
@@ -150,11 +159,11 @@
 
     //Third: Adding a payment separate from the rental
     //Since in the database payment is a notnull feature, add payment will be to update the payment section for if a customer wants to pay more later(maybe if they extended their stay?)
-    // Add Payment section - UPDATES existing payment
+    // Add Payment section UPDATES existing payment
     else if ("addPayment".equals(action)) {
         int rentingId = Integer.parseInt(request.getParameter("rentingId"));
         double amount = Double.parseDouble(request.getParameter("amount"));
-        ps = conn.prepareStatement("UPDATE Renting SET PaymentAmount = ? WHERE RentingID = ?");
+        ps = conn.prepareStatement("UPDATE Renting SET paymentamount = ? WHERE RentingID = ?");
         ps.setDouble(1, amount);
         ps.setInt(2, rentingId);
         ps.executeUpdate();
@@ -331,10 +340,10 @@
 
     <h1>Employee Dashboard</h1>
     <div class="info-bar">
-        Employee ID: <%= session.getAttribute("employeeId") != null ? session.getAttribute("employeeId") : "9001" %> |
-        Hotel ID: <%= session.getAttribute("employeeHotelId") != null ? session.getAttribute("employeeHotelId") : "101" %>
+        Employee ID: <%= session.getAttribute("employeeId") != null ? session.getAttribute("employeeId") : "101" %> |
+        Hotel ID: <%= session.getAttribute("employeeHotelId") != null ? session.getAttribute("employeeHotelId") : "11" %>
     </div>
-    <a href="index.jsp">← Switch to Customer View</a>
+    <a href="index.jsp">Switch to Customer View Here</a>
 
     <% if (!message.isEmpty()) { %>
         <p class="success"><%= message %></p>
@@ -361,6 +370,7 @@
         <form method="post">
             <input type="hidden" name="action" value="walkin">
             SIN: <input type="text" name="customerSin" required><br>
+            CustomerID: <input type="text" name="customerId" required><br>
             Full Name: <input type="text" name="customerName" required><br>
             Address: <input type="text" name="customerAddress" required><br>
             Phone: <input type="text" name="customerPhone" required><br>
@@ -391,25 +401,34 @@
         </form>
     </div>
 
-    <!-- LOOKUP CUSTOMER -->
-    <div class="section">
-        <h2>Lookup Customer by SIN</h2>
-        <form method="post">
-            <input type="hidden" name="action" value="lookupCustomer">
-            SIN: <input type="text" name="sin" required>
-            <button type="submit">Search</button>
-        </form>
-        <% if (request.getAttribute("foundCustomer") != null) {
-            ResultSet found = (ResultSet) request.getAttribute("foundCustomer");
-            if (found.next()) {
-        %>
-            <p><strong>ID:</strong> <%= found.getInt("CustomerID") %></p>
-            <p><strong>Name:</strong> <%= found.getString("full_name") %></p>
-            <p><strong>SIN:</strong> <%= found.getString("sin_number") %></p>
-            <p><strong>Address:</strong> <%= found.getString("CustAddress") %></p>
-            <p><strong>Phone:</strong> <%= found.getString("phone_number") %></p>
-        <% } } %>
-    </div>
+   <!-- LOOKUP CUSTOMER -->
+   <div class="section">
+       <h2>Lookup Customer by SIN</h2>
+       <form method="post">
+           <input type="hidden" name="action" value="lookupCustomer">
+           SIN: <input type="text" name="sin" required>
+           <button type="submit">Search</button>
+       </form>
+
+       <% if (request.getAttribute("foundCustomer") != null) {
+           ResultSet found = (ResultSet) request.getAttribute("foundCustomer");
+           if (found.next()) {
+       %>
+           <div style="margin-top: 10px; padding: 10px; border: 1px solid green; background-color: #e8f5e9;">
+               <p><strong>ID:</strong> <%= found.getInt("CustomerID") %></p>
+               <p><strong>Name:</strong> <%= found.getString("full_name") %></p>
+               <p><strong>SIN:</strong> <%= found.getString("sin_number") %></p>
+               <p><strong>Address:</strong> <%= found.getString("CustAddress") %></p>
+               <p><strong>Phone:</strong> <%= found.getString("phone_number") %></p>
+           </div>
+       <%
+           } else {
+       %>
+           <p style="color: red; margin-top: 10px;">No customer found with that SIN.</p>
+       <%
+           }
+       } %>
+   </div>
 
     <!-- CUSTOMER MANAGEMENT -->
     <div class="section">
@@ -480,17 +499,44 @@
             <input type="date" id="checkout" name="checkout" required>
             <br>
 
-            <label for="city">City:</label>
-            <select id="city" name="city">
-                <option value="">Select City</option>
-                <option value="Toronto">Toronto</option>
-                <option value="Ottawa">Ottawa</option>
-                <option value="Hamilton">Hamilton</option>
-                <option value="London">London</option>
-                <option value="Vancouver">Vancouver</option>
-                <option value="Montreal">Montreal</option>
-                <option value="Calgary">Calgary</option>
-                <option value="Edmonton">Edmonton</option>
+            <label for ="city">City:</label>
+                <select id = "city" name="city">
+                    <option value="">Select City</option>
+                    <option value="Ottawa">Ottawa</option>
+                    <option value="Toronto">Toronto</option>
+                    <option value="Hamilton">Hamilton</option>
+                    <option value="London">London</option>
+                    <option value="Windsor">Windsor</option>
+                    <option value="Barrie">Barrie</option>
+                    <option value="Kingston">Kingston</option>
+                    <option value="Vancouver">Vancouver</option>
+                    <option value="Victoria">Victoria</option>
+                    <option value="Kelowna">Kelowna</option>
+                    <option value="Surrey">Surrey</option>
+                    <option value="Burnaby">Burnaby</option>
+                    <option value="Richmond">Richmond</option>
+                    <option value="Coquitlam">Coquitlam</option>
+                    <option value="Nanaimo">Nanaimo</option>
+                    <option value="Montreal">Montreal</option>
+                    <option value="Quebec City">Quebec City</option>
+                    <option value="Laval">Laval</option>
+                    <option value="Longueuil">Longueuil</option>
+                    <option value="Gatineau">Gatineau</option>
+                    <option value="Trois-Rivières">Trois-Rivières</option>
+                    <option value="Sherbrooke">Sherbrooke</option>
+                    <option value="Saguenay">Saguenay</option>
+                    <option value="Calgary">Calgary</option>
+                    <option value="Edmonton">Edmonton</option>
+                    <option value="Red Deer">Red Deer</option>
+                    <option value="Lethbridge">Lethbridge</option>
+                    <option value="Medicine Hat">Medicine Hat</option>
+                    <option value="Fort McMurray">Fort McMurray</option>
+                    <option value="Canmore">Canmore</option>
+                    <option value="Banff">Banff</option>
+                    <option value="North Bay">North Bay</option>
+                    <option value="Belleville">Belleville</option>
+                    <option value="Sudbury">Sudbury</option>
+                    <option value="Peterborough">Peterborough</option>
             </select>
             <br>
 
