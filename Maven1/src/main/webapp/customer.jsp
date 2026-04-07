@@ -228,6 +228,7 @@
 
         <label for="hotel-id">Hotel ID:</label>
         <input type="number" id="hotel-id" name="hotel-id" value="<%= selectedHotel %>" required>
+        <span class="form-hint">(Find Hotel IDs by searching for Available Rooms)</span>
         <br>
 
         <label for="room-id">Room Number:</label>
@@ -292,7 +293,7 @@
 
 <%--current Bookings--%>
 <div class = section>
-    <h2>Your Current Bookings</h2>
+    <h2>Your Bookings</h2>
     <%
         try {
             List<String[]> bookings = RoomDAO.getBookingsByCustomer(customerId);

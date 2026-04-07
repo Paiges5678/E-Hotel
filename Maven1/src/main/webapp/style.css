@@ -1,7 +1,19 @@
+:root {
+    --primary: #0066cc;
+    --primary-hover: #004a99;
+    --bg-gray: #f8f9fa;
+    --border-color: #dee2e6;
+    --text-main: #333;
+    --text-muted: #666;
+    --error-red: #d93025;
+    --success-green: #188038;
+}
+
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Inter', sans-serif;
     margin: 15px;
     line-height: 1.4;
+    max-width: 1100px;
 }
 
 .section {
@@ -20,6 +32,12 @@ input, select {
     padding: 4px 8px;
     border: 1px solid #ccc;
     border-radius: 4px;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--primary-hover);
+    box-shadow: 0 0 0 2px rgba(0,102,204,0.1);
 }
 
 button {
@@ -54,15 +72,19 @@ table {
 }
 
 th, td {
-    border: 1px solid #ddd;
-    padding: 6px 8px;
-    text-align: left;
-    font-size: 0.95em;
+    border-bottom: 1px solid var(--border-color);
+    padding: 10px 12px;
 }
 
 th {
-    background: #f8f9fa;
+    background-color: var(--bg-gray);
+    font-weight: 600;
+    font-size: 0.85rem;
 }
+
+/* Zebra striping in table */
+tr:nth-child(even) { background-color: #fafafa; }
+tr:hover { background-color: #cde5ff; }
 
 .info-bar {
     background: #eee;
