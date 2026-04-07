@@ -1,5 +1,5 @@
 <%@ page import="connect.connection" %>
-<%@ page import="java.sql.*, java.util.*, java.text.SimpleDateFormat" %>
+<%@ page import="java.sql.*, java.util.*, java.text.SimpleDateFormat, java.time.LocalDate" %>
 <%@ page import="java.util.List, java.util.Map, java.util.ArrayList, java.util.HashMap" %>
 <%@ page import="java.sql.Date" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
@@ -50,9 +50,12 @@
         //First: Checking in a customer that already had a booking
         //Employee inputs bookID, customerID and their emplotee number and we should be able to find a booking
         if("checkin".equals(action)){
+        try{
             int customerId=Integer.parseInt(request.getParameter("customerId"));
             int bookId=Integer.parseInt(request.getParameter("bookId"));
             int employeeId=Integer.parseInt(request.getParameter("employeeId"));
+
+
 
             //check that the booking really does belong to this customer
             ps = conn.prepareStatement("SELECT b.HotelID, b.RoomNumber, b.StartDate, b.EndDate, c.full_name FROM Booking b JOIN Customer c ON b.CustomerID = c.CustomerID WHERE b.BookID = ? AND b.CustomerID = ?");
@@ -87,13 +90,17 @@
             } else {
                 error = "Booking ID " + bookId + " not found for Customer " + customerId;
             }
-        }
+        } catch (NumberFormatException e) {  // INNER CATCH
+                  error = "Please enter valid numbers for all fields.";
+              }
+             }
 
         //Second: Wlk in rental
         //Flow One: If a cutomer walks in and is not in the system we add customer first then add a rental
         //Flow Two: If a customer is already in the sequence then all that is needed is to add then rental
         //First step, we check if the room they want is even available or if we at capacity
         else if ("walkin".equals(action)) {
+            try{
             // Get employee info saved in the session
             int employeeId = (Integer) session.getAttribute("employeeId");
             int hotelId = (Integer) session.getAttribute("employeeHotelId");
@@ -111,6 +118,12 @@
             Date checkinDate = Date.valueOf(request.getParameter("checkinDate"));
             Date checkoutDate = Date.valueOf(request.getParameter("checkoutDate"));
             double paymentAmount = Double.parseDouble(request.getParameter("paymentAmount"));
+
+            // Date validation
+                if (checkinDate.after(checkoutDate)) {
+                    error = "Check-in date cannot be after check-out date.";
+                } else if (checkinDate.before(java.sql.Date.valueOf(LocalDate.now()))) {                    error = "Check-in date cannot be in the past.";
+                } else {
 
             //Query to fin which rooms are available based on the customers prefernce
             ps = conn.prepareStatement(
@@ -156,23 +169,44 @@
                 return;
             }
         }
+       } catch (NumberFormatException e) {
+                       error = "Please enter valid numbers for Customer ID, Capacity, and Payment.";
+                   } catch (IllegalArgumentException e) {
+                       error = "Invalid date format. Please use the calender to pick a date.";
+                   }
+               }
 
     //Third: Adding a payment separate from the rental
     //Since in the database payment is a notnull feature, add payment will be to update the payment section for if a customer wants to pay more later(maybe if they extended their stay?)
     // Add Payment section UPDATES existing payment
     else if ("addPayment".equals(action)) {
+        try{
         int rentingId = Integer.parseInt(request.getParameter("rentingId"));
         double amount = Double.parseDouble(request.getParameter("amount"));
+        if (amount < 0) {
+                            error = "Payment amount cannot be negative.";
+                        } else {
         ps = conn.prepareStatement("UPDATE Renting SET paymentamount = ? WHERE RentingID = ?");
         ps.setDouble(1, amount);
         ps.setInt(2, rentingId);
-        ps.executeUpdate();
-        message = "Payment updated for Renting #" + rentingId;
-    }
+        int rowsUpdated = ps.executeUpdate();
+                            if (rowsUpdated > 0) {
+                                message = "Payment updated for Renting #" + rentingId;
+                            } else {
+                                error = "Renting ID " + rentingId + " not found.";
+                            }
+                        }
+                    } catch (NumberFormatException e) {
+                        error = "Please enter valid numbers for Renting ID and Amount.";
+                    }
+                }
     //Fourth: Looking up a customer using SIN number
     //Employees can quickly find a customer by looking them up
     else if ("lookupCustomer".equals(action)) {
         String sin = request.getParameter("sin");
+        if (sin == null || sin.isEmpty()) {
+                        error = "Please enter a SIN number.";
+                    } else {
         ps = conn.prepareStatement("SELECT * FROM Customer WHERE sin_number = ?");
         ps.setString(1, sin);
         rs = ps.executeQuery();
@@ -182,10 +216,12 @@
             error = "Customer with SIN " + sin + " not found";
         }
     }
+    }
 
     //Fifth: Adding a new customer
     //Employee can add a new customer without a rental being there (just adding them to the database manually)
     else if ("addCustomer".equals(action)) {
+        try {
         int customerId = Integer.parseInt(request.getParameter("customerId"));
         String fullName = request.getParameter("full_name");
         String sinNumber = request.getParameter("sin_number");
@@ -193,6 +229,11 @@
         Date regDate = Date.valueOf(request.getParameter("date_of_registration"));
         String phoneNumber = request.getParameter("phone_number");
 
+         if (fullName == null || fullName.isEmpty()) {
+                            error = "Please enter customer name.";
+                        } else if (sinNumber == null || sinNumber.isEmpty()) {
+                            error = "Please enter SIN number.";
+                        } else {
         ps = conn.prepareStatement(
             "INSERT INTO Customer (CustomerID, full_name, sin_number, CustAddress, date_of_registration, phone_number) " +
             "VALUES (?, ?, ?, ?, ?, ?)"
@@ -206,11 +247,24 @@
         ps.executeUpdate();
 
         message = "Customer " + fullName + " added successfully!";
-    }
+    }} catch (NumberFormatException e) {
+                    error = "Please enter a valid Customer ID (number).";
+                } catch (IllegalArgumentException e) {
+                    error = "Invalid date format. Please use the date picker.";
+                } catch (SQLException e) {
+                              String sqlError = e.getMessage();
+                              if (sqlError.contains("duplicate key") || sqlError.contains("unique constraint")) {
+                                  error = "Customer ID already exists. Please use a different ID.";
+                              } else {
+                                  error = "Database error: " + e.getMessage();
+                              }
+                          }
+                      }
 
     //Seventh: Editing already existing customer info
     //Employee can update any customers info
     else if ("editCustomer".equals(action)) {
+        try{
         int customerId = Integer.parseInt(request.getParameter("customerId"));
         String fullName = request.getParameter("full_name");
         String sinNumber = request.getParameter("sin_number");
@@ -225,14 +279,21 @@
         ps.setString(3, custAddress);
         ps.setString(4, phoneNumber);
         ps.setInt(5, customerId);
-        ps.executeUpdate();
-
-        message = "Customer " + fullName + " (ID: " + customerId + ") updated successfully!";
-    }
+        int rowsUpdated = ps.executeUpdate();
+                if (rowsUpdated > 0) {
+                    message = "Customer " + fullName + " (ID: " + customerId + ") updated successfully!";
+                } else {
+                    error = "Customer ID " + customerId + " not found.";
+                }
+            } catch (NumberFormatException e) {
+                error = "Please enter a valid Customer ID.";
+            }
+        }
 
     //Eigth: Deleting a customer
     //Employee can delete a customer from the databasse
     else if ("deleteCustomer".equals(action)) {
+    try{
         int customerId = Integer.parseInt(request.getParameter("customerId"));
         ps = conn.prepareStatement("SELECT full_name FROM Customer WHERE CustomerID = ?");
         ps.setInt(1, customerId);
@@ -240,9 +301,23 @@
         String customerName = rs.next() ? rs.getString("full_name") : "Unknown";
         ps = conn.prepareStatement("DELETE FROM Customer WHERE CustomerID = ?");
         ps.setInt(1, customerId);
-        ps.executeUpdate();
-        message = "Customer " + customerName + " (ID: " + customerId + ") deleted successfully!";
-    }
+        int rowsDeleted = ps.executeUpdate();
+        if (rowsDeleted > 0) {
+                            message = "Customer " + customerName + " (ID: " + customerId + ") deleted successfully!";
+                        } else {
+                            error = "Customer ID " + customerId + " not found.";
+                        }
+                    } catch (NumberFormatException e) {
+                        error = "Please enter a valid Customer ID.";
+                    } catch (SQLException e) {
+                                  String sqlError = e.getMessage();
+                                  if (sqlError.contains("foreign key constraint")) {
+                                      error = "Cannot delete this customer as they have an existing rental or booking.";
+                                  } else {
+                                      error = "Database error: " + e.getMessage();
+                                  }
+                              }
+                }
 
     //Ninth: Viewing Total capacity
     //Employe can see the total capacity of that hotel
@@ -250,17 +325,34 @@
         Statement stmt = conn.createStatement();
         rs = stmt.executeQuery("SELECT * FROM HotelTotalCapacity");
         request.setAttribute("capacityData", rs);
+        message = "Capacity data refreshed.";
     }
 
     //Tenth: Searching for available rooms
     else if ("customerSearch".equals(action)) {
         String checkin = request.getParameter("checkin");
         String checkout = request.getParameter("checkout");
+
+        if (checkin == null || checkin.isEmpty()) {
+                        error = "Please select check-in date.";
+                    } else if (checkout == null || checkout.isEmpty()) {
+                        error = "Please select check-out date.";
+                    } else {
+                        try {
+                        java.time.LocalDate start = java.time.LocalDate.parse(checkin);
+                            java.time.LocalDate end = java.time.LocalDate.parse(checkout);
+                            java.time.LocalDate today = java.time.LocalDate.now();
+
+                            if (start.isAfter(end)) {
+                                error = "Check-in date cannot be after check-out date.";
+                            } else if (start.isBefore(today)) {
+                                error = "Cannot search for dates in the past.";
+                            } else {
+
         String city = request.getParameter("city");
         String capacity = request.getParameter("capacity");
         String priceStr = request.getParameter("price");
-        String seaView = request.getParameter("sea");
-        String mountainView = request.getParameter("mountain");
+        String view = request.getParameter("view");
         String extendable = request.getParameter("extendable");
         String starRating = request.getParameter("starRating");
         String chain = request.getParameter("chain");
@@ -290,12 +382,10 @@
         if (chain != null && !chain.isEmpty()) {
             sql += " AND h.ChainID = " + chain;
         }
-        if ("yes".equals(seaView)) {
-            sql += " AND r.RoomView = 'sea'";
+        if (view != null && !view.isEmpty()) {
+            sql += " AND r.RoomView = '" + view + "'";
         }
-        if ("yes".equals(mountainView)) {
-            sql += " AND r.RoomView = 'mountain'";
-        }
+
         if ("yes".equals(extendable)) {
             sql += " AND r.ExtendableStatus = TRUE";
         }
@@ -303,19 +393,25 @@
         sql += " ORDER BY r.Price LIMIT 20";
 
         ps = conn.prepareStatement(sql);
-        ps.setString(1, checkout);
-        ps.setString(2, checkin);
+        ps.setDate(1, java.sql.Date.valueOf(checkout));
+        ps.setDate(2, java.sql.Date.valueOf(checkin));
         rs = ps.executeQuery();
         request.setAttribute("searchResults", rs);
     }
 
-    } catch (SQLException e) {
-        error = "Database error: " + e.getMessage();
     } catch (Exception e) {
-        error = "Error: " + e.getMessage();
-    } finally {
-        if (conn != null) try { conn.close(); } catch (SQLException e) {}
-    }
+                        error = "Invalid date format. Please use the date picker.";
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            error = "Database error: " + e.getMessage();
+        } catch (Exception e) {
+            error = "Error: " + e.getMessage();
+        } finally {
+            if (conn != null) try { conn.close(); } catch (SQLException e) {}
+        }
 %>
 
 
@@ -343,7 +439,7 @@
         Employee ID: <%= session.getAttribute("employeeId") != null ? session.getAttribute("employeeId") : "101" %> |
         Hotel ID: <%= session.getAttribute("employeeHotelId") != null ? session.getAttribute("employeeHotelId") : "11" %>
     </div>
-    <a href="index.jsp">Switch to Customer View Here</a>
+    <a href="index.jsp">Back to login</a>
 
     <% if (!message.isEmpty()) { %>
         <p class="success"><%= message %></p>
@@ -488,7 +584,7 @@
     <div class="section">
         <h2>Search Available Rooms</h2>
 
-        <form action="employeeDashboard.jsp" method="post">
+        <form action="employee.jsp" method="post">
             <input type="hidden" name="action" value="customerSearch">
 
             <label for="checkin">Check-in date:</label>
@@ -549,7 +645,7 @@
             <br>
 
             <label for="price">Max Price per night ($):</label>
-            <input type="number" id="price" name="price" placeholder="e.g. 200">
+            <input type="number" id="price" name="price" max = "2000" placeholder="e.g. 200">
             <br>
 
             <label for="chain">Hotel Chain:</label>
@@ -563,52 +659,82 @@
             </select>
             <br>
 
-            <label>Extras:</label>
-            <input type="checkbox" name="sea" value="yes"> Sea View
-            <input type="checkbox" name="mountain" value="yes"> Mountain View
-            <input type="checkbox" name="extendable" value="yes"> Extendable
-            <br><br>
+            <label for="view">Room View:</label>
+                <select id="view" name="view">
+                    <option value="">Any / None</option>
+                    <option value="sea">Sea View</option>
+                    <option value="mountain">Mountain View</option>
+                </select>
+                <br>
 
-            <button type="submit" name="action" value="customerSearch">Search Available Rooms</button>
-        </form>
+                <label for="extendable">Extendable:</label>
+                <input type="checkbox" id="extendable" name="extendable" value="yes">
+                <br>
+
+                <br>
+                <button type="submit">Search Available Rooms</button></form>
     </div>
 
  <!-- SEARCH RESULTS SECTION -->
- <% if (request.getAttribute("searchResults") != null) {
-     ResultSet searchRs = (ResultSet) request.getAttribute("searchResults");
+ <%
+     if ("customerSearch".equals(action)) {
+         String checkin = request.getParameter("checkin");
+         String checkout = request.getParameter("checkout");
+
+         // Date validation
+         java.time.LocalDate start = java.time.LocalDate.parse(checkin);
+         java.time.LocalDate end = java.time.LocalDate.parse(checkout);
+         java.time.LocalDate today = java.time.LocalDate.now();
+
+         if (start.isAfter(end)) {
  %>
-     <div class="section">
-         <h2>Search Results</h2>
-         <% if (!searchRs.isBeforeFirst()) { %>
-             <p>No rooms found matching your criteria.</p>
-         <% } else { %>
-             <table border="1">
-                 <tr>
-                     <th>Hotel ID</th>
-                     <th>Room #</th>
-                     <th>Address</th>
-                     <th>Capacity</th>
-                     <th>Price/Night</th>
-                     <th>View</th>
-                     <th>Extendable</th>
-                     <th>Stars</th>
-                 </tr>
-                 <% while (searchRs.next()) { %>
+             <p style="color:red; font-weight:bold;">Error: Check-in date cannot be after the check-out date.</p>
+ <%
+         } else if (start.isBefore(today)) {
+ %>
+             <p style="color:red; font-weight:bold;">Error: You cannot search for dates in the past.</p>
+ <%
+         } else {
+             // Only show results if dates are valid and search was performed
+             if (request.getAttribute("searchResults") != null) {
+                 ResultSet searchRs = (ResultSet) request.getAttribute("searchResults");
+ %>
+         <div class="section">
+             <h2>Available Rooms</h2>
+             <% if (!searchRs.isBeforeFirst()) { %>
+                 <p>No rooms found matching your criteria.</p>
+             <% } else { %>
+                 <table border="1">
                      <tr>
-                         <td><%= searchRs.getInt("HotelID") %></td>
-                         <td><%= searchRs.getInt("RoomNumber") %></td>
-                         <td><%= searchRs.getString("HotelAddress") %></td>
-                         <td><%= searchRs.getInt("Capacity") %></td>
-                         <td>$<%= searchRs.getDouble("Price") %></td>
-                         <td><%= searchRs.getString("RoomView") %></td>
-                         <td><%= searchRs.getBoolean("ExtendableStatus") ? "Yes" : "No" %></td>
-                         <td><%= searchRs.getInt("StarRating") %></td>
+                         <th>Hotel ID</th>
+                         <th>Room #</th>
+                         <th>Address</th>
+                         <th>Capacity</th>
+                         <th>Price/Night</th>
+                         <th>View</th>
+                         <th>Extendable</th>
+                         <th>Stars</th>
                      </tr>
-                 <% } %>
-             </table>
-         <% } %>
-     </div>
- <% } %>
+                     <% while (searchRs.next()) { %>
+                         <tr>
+                             <td><%= searchRs.getInt("HotelID") %></td>
+                             <td><%= searchRs.getInt("RoomNumber") %></td>
+                             <td><%= searchRs.getString("HotelAddress") %></td>
+                             <td><%= searchRs.getInt("Capacity") %></td>
+                             <td>$<%= searchRs.getDouble("Price") %></td>
+                             <td><%= searchRs.getString("RoomView") %></td>
+                             <td><%= searchRs.getBoolean("ExtendableStatus") ? "Yes" : "No" %></td>
+                             <td><%= searchRs.getInt("StarRating") %></td>
+                          </tr>
+                     <% } %>
+                 </table>
+             <% } %>
+         </div>
+ <%
+             }
+         }
+     }
+ %>
 
 
 </body>

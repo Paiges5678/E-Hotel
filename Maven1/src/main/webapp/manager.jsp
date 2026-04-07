@@ -30,10 +30,10 @@
             isManager = checkRs.getBoolean("IsManager");
             session.setAttribute("isManager", isManager);
         } else {
-            session.setAttribute("employeeHotelId", 101);
+            session.setAttribute("employeeHotelId", 11);
         }
     } catch (Exception e) {
-        session.setAttribute("employeeHotelId", 101);
+        session.setAttribute("employeeHotelId", 11);
     } finally {
           if (rs != null) try { rs.close(); } catch (SQLException e) {}
           if (ps != null) try { ps.close(); } catch (SQLException e) {}
@@ -41,7 +41,7 @@
       }
 
     if (!isManager) {
-        response.sendRedirect("employeeDashboard.jsp");
+        response.sendRedirect("employee.jsp");
         return;
     }
 %>
@@ -50,8 +50,9 @@
     try {
         conn = connection.getConnection();
 
-        // Adding a hotel
+        // First: Adding a hotel
         if ("addHotel".equals(action)) {
+            try{
             int hotelId = Integer.parseInt(request.getParameter("hotelId"));
             int chainId = Integer.parseInt(request.getParameter("chainId"));
             int starRating = Integer.parseInt(request.getParameter("starRating"));
@@ -64,25 +65,61 @@
             ps.setString(4, hotelAddress);
             ps.executeUpdate();
             message = "Hotel " + hotelId + " added successfully!";
-        }
+        }//closing the try
+        catch (NumberFormatException e) {
+                        error = "Please enter valid numbers for Hotel ID, Chain ID, and Star Rating.";
+                    } catch (SQLException e) {
+                        String sqlError = e.getMessage();
+                        if (sqlError.contains("duplicate key")) {
+                            error = "Hotel ID already exists. Please use a different ID.";
+                        } else if (sqlError.contains("foreign key")) {
+                            error = "Chain ID does not exist. Please use a valid Chain ID.";
+                        } else {
+                            error = "Database error: " + e.getMessage();
+                        }
+                    }
+                   }//close the original if
 
-        //Deleting a hotel
+        //Second: Deleting a hotel
         else if ("deleteHotel".equals(action)) {
+        try{
             int hotelId = Integer.parseInt(request.getParameter("hotelId"));
             ps = conn.prepareStatement("DELETE FROM Hotel WHERE HotelID = ?");
             ps.setInt(1, hotelId);
-            ps.executeUpdate();
-            message = "Hotel " + hotelId + " deleted successfully!";
-        }
+            int rowsDeleted = ps.executeUpdate();
+                if (rowsDeleted > 0) {
+                    message = "Hotel " + hotelId + " deleted successfully!";
+                } else {
+                    error = "Hotel ID " + hotelId + " not found.";
+                }
+            } catch (NumberFormatException e) {
+                error = "Please enter a valid Hotel ID.";
+            } catch (SQLException e) {
+                String sqlError = e.getMessage();
+                if (sqlError.contains("foreign key")) {
+                    error = "Cannot delete this hotel. It has rooms or other linked records. Delete those first.";
+                } else {
+                    error = "Database error: " + e.getMessage();
+                }
+            }
+        }//closes the else it
 
-        //Adding a room
+        //Third: Adding a room
         else if ("addRoom".equals(action)) {
+        try{
             int hotelId = Integer.parseInt(request.getParameter("hotelId"));
             int roomNumber = Integer.parseInt(request.getParameter("roomNumber"));
             double price = Double.parseDouble(request.getParameter("price"));
             int capacity = Integer.parseInt(request.getParameter("capacity"));
             String roomView = request.getParameter("roomView");
             boolean extendableStatus = Boolean.parseBoolean(request.getParameter("extendableStatus"));
+
+            //check for number formatting:
+            if (price < 0) {
+                                error = "Price cannot be negative.";
+                            } else if (capacity < 1) {
+                                error = "Capacity must be at least 1.";
+                            } else {
 
             ps = conn.prepareStatement("INSERT INTO Room (HotelID, RoomNumber, Price, Capacity, RoomView, ExtendableStatus, ProblemDamageStatus) VALUES (?, ?, ?, ?, ?, ?, FALSE)");
             ps.setInt(1, hotelId);
@@ -94,21 +131,50 @@
             ps.executeUpdate();
             message = "Room " + roomNumber + " added to Hotel " + hotelId;
         }
+        } catch (NumberFormatException e) {
+                        error = "Please enter valid numbers for Hotel ID, Room Number, Price, and Capacity.";
+                    } catch (SQLException e) {
+                        String sqlError = e.getMessage();
+                        if (sqlError.contains("duplicate key")) {
+                            error = "Room already exists in this hotel. Use a different room number.";
+                        } else if (sqlError.contains("foreign key")) {
+                            error = "Hotel ID does not exist. Please use a valid Hotel ID.";
+                        } else {
+                            error = "Database error: " + e.getMessage();
+                        }
+                    }
+                }
 
-        // Deleting a room
+        //Fourth: Deleting a room
         else if ("deleteRoom".equals(action)) {
+        try{
             int hotelId = Integer.parseInt(request.getParameter("hotelId"));
             int roomNumber = Integer.parseInt(request.getParameter("roomNumber"));
 
             ps = conn.prepareStatement("DELETE FROM Room WHERE HotelID = ? AND RoomNumber = ?");
             ps.setInt(1, hotelId);
             ps.setInt(2, roomNumber);
-            ps.executeUpdate();
-            message = "Room " + roomNumber + " deleted from Hotel " + hotelId;
-        }
+        int rowsDeleted = ps.executeUpdate();
+                        if (rowsDeleted > 0) {
+                            message = "Room " + roomNumber + " deleted from Hotel " + hotelId;
+                        } else {
+                            error = "Room " + roomNumber + " not found in Hotel " + hotelId;
+                        }
+                    } catch (NumberFormatException e) {
+                        error = "Please enter valid numbers for Hotel ID and Room Number.";
+                    } catch (SQLException e) {
+                        String sqlError = e.getMessage();
+                        if (sqlError.contains("foreign key")) {
+                            error = "Cannot delete this room. It has existing bookings or rentals.";
+                        } else {
+                            error = "Database error: " + e.getMessage();
+                        }
+                    }
+                }
 
-        //Adding an employee
+        //Fifth: Adding an employee
         else if ("addEmployee".equals(action)) {
+        try{
             int employeeId = Integer.parseInt(request.getParameter("employeeId"));
             String fullName = request.getParameter("full_name");
             String sinNumber = request.getParameter("sin_number");
@@ -117,6 +183,14 @@
             String empPosition = request.getParameter("EmpPosition");
             boolean isManagerEmp = "true".equals(request.getParameter("isManager"));
             int hotelId = Integer.parseInt(request.getParameter("HotelID"));
+
+            if (fullName == null || fullName.isEmpty()) {
+                error = "Please enter employee name.";
+            } else if (sinNumber == null || sinNumber.isEmpty()) {
+                error = "Please enter SIN number.";
+            } else if (salary < 0) {
+                error = "Salary cannot be negative.";
+            } else {
 
             ps = conn.prepareStatement("INSERT INTO Employee (EmployeeID, full_name, sin_number, EmpAddress, salary, EmpPosition, IsManager, HotelID) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
             ps.setInt(1, employeeId);
@@ -130,26 +204,111 @@
             ps.executeUpdate();
             message = "Employee " + fullName + " added successfully!";
         }
+        } catch (NumberFormatException e) {
+                        error = "Please enter valid numbers for Employee ID, Salary, and Hotel ID.";
+                    } catch (SQLException e) {
+                        String sqlError = e.getMessage();
+                        if (sqlError.contains("duplicate key")) {
+                            error = "Employee ID already exists. Please use a different ID.";
+                        } else if (sqlError.contains("foreign key")) {
+                            error = "Hotel ID does not exist. Please use a valid Hotel ID.";
+                        } else {
+                            error = "Database error: " + e.getMessage();
+                        }
+                    }
+                }
 
-        //Deleting an employee
+        //Sixth: Deleting an employee
         else if ("deleteEmployee".equals(action)) {
+            try{
             int employeeId = Integer.parseInt(request.getParameter("employeeId"));
             ps = conn.prepareStatement("DELETE FROM Employee WHERE EmployeeID = ?");
             ps.setInt(1, employeeId);
-            ps.executeUpdate();
-            message = "Employee " + employeeId + " deleted successfully!";
-        }
+            int rowsDeleted = ps.executeUpdate();
+                            if (rowsDeleted > 0) {
+                                message = "Employee " + employeeId + " deleted successfully!";
+                            } else {
+                                error = "Employee ID " + employeeId + " not found.";
+                            }
+                        } catch (NumberFormatException e) {
+                            error = "Please enter a valid Employee ID.";
+                        } catch (SQLException e) {
+                            String sqlError = e.getMessage();
+                            if (sqlError.contains("foreign key")) {
+                                error = "Cannot delete this employee as they have either rentals or bookings.";
+                            } else {
+                                error = "Database error: " + e.getMessage();
+                            }
+                        }
+                    }
 
-        //Promoting or demoting an emplyoee
+        //Seventh: Promoting or demoting an emplyoee
         else if ("updateEmployeeManager".equals(action)) {
-            int employeeId = Integer.parseInt(request.getParameter("employeeId"));
-            boolean isManagerEmp = "true".equals(request.getParameter("isManager"));
+            try {
+                int employeeId = Integer.parseInt(request.getParameter("employeeId"));
+                String managerStatus = request.getParameter("isManager");
 
-            ps = conn.prepareStatement("UPDATE Employee SET IsManager = ? WHERE EmployeeID = ?");
-            ps.setBoolean(1, isManagerEmp);
-            ps.setInt(2, employeeId);
-            ps.executeUpdate();
-            message = "Employee " + employeeId + " updated successfully!";
+                if (managerStatus == null) {
+                    error = "Please select either Promote or Demote.";
+                } else {
+                    boolean isManagerEmp = "true".equals(managerStatus);
+
+                    // Check if employee exists
+                    ps = conn.prepareStatement("SELECT IsManager, HotelID FROM Employee WHERE EmployeeID = ?");
+                    ps.setInt(1, employeeId);
+                    rs = ps.executeQuery();
+
+                    if (!rs.next()) {
+                        error = "Employee ID " + employeeId + " not found.";
+                    } else {
+
+                        // Demotion logic
+                        if (!isManagerEmp && rs.getBoolean("IsManager")) {
+                            int hotelId = rs.getInt("HotelID");
+
+                            ps = conn.prepareStatement("SELECT COUNT(*) FROM Employee WHERE HotelID = ? AND IsManager = TRUE");
+                            ps.setInt(1, hotelId);
+                            ResultSet rs2 = ps.executeQuery();
+                            rs2.next();
+                            int managerCount = rs2.getInt(1);
+                            rs2.close();
+
+                            if (managerCount <= 1) {
+                                error = "Cannot demote the last manager of a hotel.";
+                            } else {
+                                ps = conn.prepareStatement("UPDATE Employee SET IsManager = ? WHERE EmployeeID = ?");
+                                ps.setBoolean(1, isManagerEmp);
+                                ps.setInt(2, employeeId);
+                                ps.executeUpdate();
+                                message = "Employee " + employeeId + " demoted successfully!";
+                            }
+
+                        } else {
+                            // Promotion or normal update
+                            ps = conn.prepareStatement("UPDATE Employee SET IsManager = ? WHERE EmployeeID = ?");
+                            ps.setBoolean(1, isManagerEmp);
+                            ps.setInt(2, employeeId);
+
+                            int rowsUpdated = ps.executeUpdate();
+                            if (rowsUpdated > 0) {
+                                message = "Employee " + employeeId + " promoted successfully!";
+                            } else {
+                                error = "Employee ID " + employeeId + " not found.";
+                            }
+                        }
+                    }
+                }
+
+            } catch (NumberFormatException e) {
+                error = "Please enter a valid Employee ID.";
+            } catch (SQLException e) {
+                String sqlError = e.getMessage();
+                if (sqlError.contains("must have at least one manager")) {
+                    error = "Cannot demote the last manager of a hotel.";
+                } else {
+                    error = "Database error: " + e.getMessage();
+                }
+            }
         }
         else if ("viewAllEmployees".equals(action)) {
             ps = conn.prepareStatement("SELECT * FROM Employee");
@@ -195,11 +354,11 @@
 
     <h1>Manager Dashboard</h1>
     <div class="info-bar">
-        Manager ID: <%= session.getAttribute("employeeId") != null ? session.getAttribute("employeeId") : "9001" %> |
-        Hotel ID: <%= session.getAttribute("employeeHotelId") != null ? session.getAttribute("employeeHotelId") : "101" %>
+        Manager ID: <%= session.getAttribute("employeeId") != null ? session.getAttribute("employeeId") : "101" %> |
+        Hotel ID: <%= session.getAttribute("employeeHotelId") != null ? session.getAttribute("employeeHotelId") : "11" %>
     </div>
-    <a href="employeeDashboard.jsp">← Go to Employee Dashboard</a>
-    <a href="index.jsp">Switch to Customer View</a>
+    <a href="employee.jsp">Go to Employee Dashboard</a>
+    <a href="index.jsp">Back to Login Page</a>
 
     <% if (!message.isEmpty()) { %>
         <p class="success"><%= message %></p>
@@ -305,6 +464,7 @@
             <input type="hidden" name="action" value="updateEmployeeManager">
             Employee ID: <input type="number" name="employeeId" required><br>
             Make Manager: <input type="checkbox" name="isManager" value="true"><br>
+            Demote Manager: <input type="checkbox" name="isManager" value="false"><br>
             <button type="submit">Update Employee</button>
         </form>
     </div>
