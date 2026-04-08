@@ -1,0 +1,47 @@
+--query 1 - average room price per chain (aggregation)
+SELECT hc.ChainID, 
+       COUNT(r.RoomNumber) AS total_rooms,
+       ROUND(AVG(r.Price), 2) AS avg_price_per_night,
+       MIN(r.Price) AS cheapest,
+       MAX(r.Price) AS most_expensive
+FROM HotelChain hc
+JOIN Hotel h ON hc.ChainID = h.ChainID
+JOIN Room r ON h.HotelID = r.HotelID
+GROUP BY hc.ChainID
+ORDER BY avg_price_per_night DESC;
+
+-- query 2 - customers who have never made a booking (nested)
+SELECT CustomerID, full_name, date_of_registration
+FROM Customer
+WHERE CustomerID NOT IN (
+    SELECT DISTINCT CustomerID FROM Booking
+)
+AND CustomerID NOT IN (
+    SELECT DISTINCT CustomerID FROM Renting
+);
+
+-- query 3 - number of employees per hotel (aggregation)
+SELECT h.HotelID, h.HotelAddress, COUNT(e.EmployeeID) AS num_employees
+FROM Hotel h
+JOIN Employee e ON h.HotelID = e.HotelID
+GROUP BY h.HotelID, h.HotelAddress
+ORDER BY num_employees DESC;
+
+-- query 4 - total number of rooms per hotel
+SELECT h.HotelID, h.HotelAddress, COUNT(r.RoomNumber) AS total_rooms
+FROM Hotel h
+JOIN Room r ON h.HotelID = r.HotelID
+GROUP BY h.HotelID, h.HotelAddress
+ORDER BY total_rooms DESC;
+
+-- query 5 - hotels with a star rating above average (nested)
+SELECT HotelID, HotelAddress, StarRating
+FROM Hotel
+WHERE StarRating > (
+    SELECT AVG(StarRating) FROM Hotel
+)
+ORDER BY StarRating DESC;
+
+
+
+
